@@ -60,7 +60,13 @@ def process_folder():
     for file_path in sorted(audio_files):
         filename = os.path.basename(file_path)
         base_name = os.path.splitext(filename)[0]
+        json_output = os.path.join(OUTPUT_FOLDER, f"{base_name}.json")
+        txt_output = os.path.join(OUTPUT_FOLDER, f"{base_name}.txt")
         print(f"\n--- Processing: {filename} ---")
+
+        if os.path.exists(json_output) or os.path.exists(txt_output):
+            print(f"  Output for {filename} already exists. Skipping to avoid overwriting.")
+            continue
 
         # Load audio into memory
         audio = whisperx.load_audio(file_path)
@@ -86,19 +92,17 @@ def process_folder():
 
         # Diarize (identify speakers)
         print("3/4 Identifying speakers...")
-        diarize_segments = diarize_model(audio)
+        diarize_segments = diarize_model(audio, min_speakers=1, max_speakers=2)
 
         # Assign speakers to the aligned words
         print("4/4 Merging speakers with text...")
         result = whisperx.assign_word_speakers(diarize_segments, result)
 
         # Save Output - JSON (Contains full raw data & timestamps)
-        json_output = os.path.join(OUTPUT_FOLDER, f"{base_name}.json")
         with open(json_output, "w", encoding="utf-8") as f:
             json.dump(result, f, indent=4, ensure_ascii=False)
 
         # Save Output - Human Readable TXT
-        txt_output = os.path.join(OUTPUT_FOLDER, f"{base_name}.txt")
         with open(txt_output, "w", encoding="utf-8") as f:
             for segment in result["segments"]:
                 # If pyannote fails to identify a speaker for a micro-segment, default to "UNKNOWN"
@@ -110,9 +114,9 @@ def process_folder():
                 line = f"[{start}s - {end}s] {speaker}: {text}\n"
                 f.write(line)
 
-        print(f"✅ Finished {filename}. Saved to {OUTPUT_FOLDER}")
+        print(f" Finished {filename}. Saved to {OUTPUT_FOLDER}")
 
-    print("\n🎉 All files processed successfully!")
+    print("\n All files processed successfully!")
 
 if __name__ == "__main__":
     process_folder()

@@ -4,6 +4,7 @@
 # Ignore audio inputs and transcription outputs
 audio_inputs/
 transcriptions/
+vocab/
 
 # Ignore environment variables (where your secret token will live)
 .env
