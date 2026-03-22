@@ -38,7 +38,7 @@ Add huggingface token in `.env.example` and rename to `.env`
 ## Anki deck cleanup and enrichment
 
 TODO put link to anki deck
-I found some anki deck with the 1000 most common spanish words, but it wasn't the highes quality, and only contained spanish -> english translations. So I used an LLM to clean up the translations, add german translations, and add example sentences.
+I found some anki deck with the 1000 most common spanish words, but it wasn't the highest quality, and only contained spanish -> english translations. So I used an LLM to clean up the translations, add german translations, and add example sentences.
 
 `python3 src/extract_from_anki.py`
 
