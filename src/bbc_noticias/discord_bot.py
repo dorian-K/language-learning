@@ -80,9 +80,10 @@ async def fetch_and_pick_story(llm: LLM) -> dict:
         stories = fetch_stories(max_age_hours=48)
         logger.info("[bot] fetch_stories returned %d stories", len(stories))
         # Avoid already-sent stories so the button/slash always pick fresh ones
-        filtered = filter_unsent(stories)
-        logger.info("[bot] filter_unsent reduced to %d unsent stories", len(filtered))
-        return filtered
+        unsent_links = set(filter_unsent([s["link"] for s in stories]))
+        stories = [s for s in stories if s["link"] in unsent_links]
+        logger.info("[bot] filter_unsent reduced to %d unsent stories", len(stories))
+        return stories
 
     def blocking_with_llm(stories: list[dict]) -> dict:
         selected = select_best_story(stories, llm)
