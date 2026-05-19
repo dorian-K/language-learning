@@ -18,7 +18,7 @@ RUN uv sync --no-dev
 COPY src/ ./src/
 
 # Copy entrypoint
-COPY bot_entrypoint.sh /app/entrypoint.sh
-RUN chmod +x /app/entrypoint.sh
+COPY bot_entrypoint.sh /app/bot_entrypoint.sh
+RUN chmod +x /app/bot_entrypoint.sh
 
-CMD ["/app/entrypoint.sh"]
+CMD ["/app/bot_entrypoint.sh"]
