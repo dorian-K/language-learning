@@ -140,11 +140,12 @@ if __name__ == "__main__":
 def send_article(title: str, original_url: str, simplified_text: str, pub_date: str) -> dict:
     """
     Sync wrapper for backward compatibility with bot.py.
-    Posts via webhook to Discord only (Telegram is async-only).
-    Returns {"discord": bool, "telegram": bool}.
+    bot.py uses this to post the story via Discord webhook.
+    Telegram is handled asynchronously in run() and not via this function.
+    Returns {"discord": bool, "telegram": None}.
     """
     logger.info("[send_article] Posting: %s", title)
-    result = {"discord": False, "telegram": False}
+    result = {"discord": False, "telegram": None}
 
     webhook_url = os.getenv("DISCORD_WEBHOOK_URL", "")
     if webhook_url:

@@ -79,12 +79,10 @@ DRY_RUN=true python -m src.bbc_noticias.bot
 docker compose up -d
 ```
 
-The container runs daily by default. Configure `SCHEDULE_HOURS` to change the interval.
+The container runs daily at 08:00 CET/CEST. The cron job runs `bot.py` which posts to Discord webhook and Telegram.
 
 **Scheduled (without Docker):**
-```bash
-python -m src.bbc_noticias.bot --loop --interval 24
-```
+Add a cron entry for `python -m src.bbc_noticias.bot`.
 
 ### Configuration
 
@@ -94,6 +92,8 @@ python -m src.bbc_noticias.bot --loop --interval 24
 | `OPENROUTER_MODEL` | | `openrouter/auto` | Model to use |
 | `DISCORD_WEBHOOK_URL` | One of | — | Discord webhook URL |
 | `TELEGRAM_BOT_TOKEN` | One of | — | Telegram bot token |
-| `TELEGRAM_CHAT_ID` | | — | Telegram chat ID |
+| `TELEGRAM_CHAT_ID` | | — | Telegram DM chat ID (for user DMs) |
+| `TELEGRAM_CHANNEL_ID` | | — | Telegram channel ID (e.g. -1001234567890) |
 | `MAX_AGE_HOURS` | | `24` | How far back to search RSS |
+| `MAX_STORIES_FOR_SELECTION` | | `15` | Stories to include in LLM selection prompt |
 | `DRY_RUN` | | `false` | Skip sending messages |
