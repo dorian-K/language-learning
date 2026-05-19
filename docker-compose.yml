@@ -5,28 +5,13 @@ services:
       dockerfile: Dockerfile
     container_name: bbc-cron
     restart: unless-stopped
-    entrypoint: ["/app/entrypoint.sh"]
     env_file:
       - .env
     environment:
       - DRY_RUN=${DRY_RUN:-false}
-    volumes:
-      - ./crontab:/app/crontab:ro
-      - ./data:/app/data
-      - ./shared:/app/shared
-      - ./.env:/app/.env
-
-  bbc-bot:
-    build:
-      context: .
-      dockerfile: Dockerfile.bot
-    container_name: bbc-bot
-    restart: unless-stopped
-    entrypoint: ["/app/bot_entrypoint.sh"]
-    env_file:
-      - .env
-    environment:
       - SHARED_QUEUE_PATH=/app/shared/queue.json
     volumes:
+      - ./crontab:/app/crontab:ro
       - ./shared:/app/shared
       - ./data:/app/data
+      - ./.env:/app/.env
