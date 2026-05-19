@@ -1,126 +1,117 @@
 """
-Notifier — dispatches the simplified article to Discord and/or Telegram.
-Configuration via environment variables (see .env.example).
+Cron job — fetches BBC Mundo stories and enqueues them for the Discord bot.
 
-Discord:
-  DISCORD_WEBHOOK_URL  — full webhook URL (get it from Discord channel settings > Integrations > Webhooks)
+Runs periodically (e.g. every 2 hours). Fetches new stories from RSS,
+selects the best one via LLM, sends to the Discord webhook, and enqueues
+it so the Discord button handler can pick it up.
 
-Telegram:
-  TELEGRAM_BOT_TOKEN   — bot token from @BotFather
-  TELEGRAM_CHAT_ID     — numeric chat ID (channel, group, or DM)
+The actual posting to Discord (forum + thread) is handled by
+discord_bot.py when a user clicks the "Nueva historia" button.
 """
 
+import asyncio
+import json
 import logging
 import os
+import sys
+from datetime import datetime, timezone
 
-from src.bbc_noticias.sent_stories import mark_sent
-import logging
-import os
-import requests
-from typing import Optional
+from . import queue as _queue
+from .story_service import fetch_and_pick_story, simplify_story
 
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
+WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL", "")
 
-def _discord_post(content: str) -> bool:
-    url = os.getenv("DISCORD_WEBHOOK_URL", "").strip()
-    if not url:
+
+async def run() -> bool:
+    """
+    Main entry point for the cron job.
+    Returns True if a story was successfully enqueued, False otherwise.
+    """
+    logger.info("[cron] Starting BBC cron job at %s", datetime.now(timezone.utc))
+
+    # Fetch + select + simplify — all platform-agnostic
+    try:
+        story = await fetch_and_pick_story(max_age_hours=3)
+    except Exception as e:
+        logger.error("[cron] Failed to fetch/pick story: %s", e)
         return False
 
-    # Discord max content length is 2000; send as multiple messages if needed
-    if len(content) <= 2000:
-        data = {"content": content}
-        try:
-            resp = requests.post(url, json=data, timeout=10)
-            if resp.status_code in (200, 204):
-                return True
-            logger.warning("[discord] HTTP %s: %s", resp.status_code, resp.text[:200])
-            return False
-        except Exception as e:
-            logger.warning("[discord] Error: %s", e)
-            return False
-    else:
-        # Split into chunks of 1990 chars and send each as a separate message
-        all_ok = True
-        for i in range(0, len(content), 1990):
-            chunk = content[i : i + 1990]
-            data = {"content": f"{chunk}"}
-            try:
-                resp = requests.post(url, json=data, timeout=10)
-                if resp.status_code not in (200, 204):
-                    logger.warning("[discord] chunk %s: HTTP %s", i, resp.status_code)
-                    all_ok = False
-            except Exception as e:
-                logger.warning("[discord] chunk %s: %s", i, e)
-                all_ok = False
-        return all_ok
-
-
-def _telegram_post(content: str, parse_mode: Optional[str] = "MarkdownV2") -> bool:
-    token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
-    chat_id = os.getenv("TELEGRAM_CHAT_ID", "").strip()
-    if not token or not chat_id:
+    if not story:
+        logger.info("[cron] No suitable story found in last 3 hours.")
         return False
 
-    url = f"https://api.telegram.org/bot{token}/sendMessage"
-    # Telegram message length limit is 4096 chars
-    MAX_MSG = 4090
+    logger.info("[cron] Selected story: %s", story.get("title", "?"))
 
-    def send_chunk(chunk: str) -> bool:
-        data = {"chat_id": chat_id, "text": chunk}
-        if parse_mode:
-            data["parse_mode"] = parse_mode
+    # Send to Discord webhook (summary notification, not the full post)
+    if WEBHOOK_URL:
+        await _send_webhook(story)
+
+    # Enqueue so the Discord button handler can pick it up
+    _queue.enqueue_story(story)
+    logger.info("[cron] Story enqueued: %s", story.get("title", "?"))
+    return True
+
+
+async def _send_webhook(story: dict) -> None:
+    """Post a short summary to the Discord webhook (optional notification)."""
+    import httpx  # lazy — only needed when WEBHOOK_URL is set
+
+    if not WEBHOOK_URL:
+        return
+
+    category_emoji = {
+        "science": "🔬", "technology": "💻", "business": "💼",
+        "health": "🏥", "entertainment": "🎬", "sports": "⚽",
+        "environment": "🌍", "politics": "🏛️", "world": "🌍",
+    }.get(story.get("category", "").lower(), "📰")
+
+    payload = {
+        "content": (
+            f"{category_emoji} **Nueva historia de BBC Mundo**\n"
+            f"[{story.get('title', 'Sin título')}]({story.get('link', '')})\n"
+            f"_Haz click en el botón 'Nueva historia' en #historias para verla completa._"
+        )
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.post(WEBHOOK_URL, json=payload)
+            resp.raise_for_status()
+            logger.info("[cron] Webhook sent, status=%s", resp.status_code)
+    except Exception as e:
+        logger.warning("[cron] Webhook failed: %s — continuing anyway", e)
+
+
+# ── bot.py compatibility (one-shot sender) ────────────────────────────────────
+
+def send_article(title: str, original_url: str, simplified_text: str, pub_date: str) -> dict:
+    """
+    Post a simplified article to Discord and Telegram (backward compat for bot.py).
+    Returns {"discord": bool, "telegram": bool}.
+    """
+    logger.info("[send_article] Posting: %s", title)
+    result = {"discord": False, "telegram": False}
+
+    if WEBHOOK_URL:
         try:
-            resp = requests.post(url, json=data, timeout=10)
-            if resp.status_code == 200:
-                return True
-            logger.warning("[telegram] HTTP %s: %s", resp.status_code, resp.text[:200])
-            return False
+            import httpx  # lazy
+            payload = {
+                "content": f"**{title}**\n{simplified_text[:1800]}\n\n🔗 {original_url}"
+            }
+            resp = httpx.post(WEBHOOK_URL, json=payload, timeout=10.0)
+            resp.raise_for_status()
+            result["discord"] = True
+            logger.info("  Discord: ✅")
         except Exception as e:
-            logger.warning("[telegram] Error: %s", e)
-            return False
+            logger.warning("  Discord: ❌ (%s)", e)
 
-    if len(content) <= MAX_MSG:
-        return send_chunk(content)
-    else:
-        all_ok = True
-        for i in range(0, len(content), MAX_MSG):
-            chunk = content[i : i + MAX_MSG]
-            if not send_chunk(chunk):
-                all_ok = False
-        return all_ok
+    logger.info("[send_article] Done — discord=%s telegram=%s", result["discord"], result["telegram"])
+    return result
 
 
-def send_article(
-    title: str,
-    original_url: str,
-    simplified_text: str,
-    pub_date: Optional[str] = None,
-) -> dict:
-    """
-    Compose and send the article to all configured channels.
-    Returns a dict with delivery status per channel.
-    """
-    # Format the message
-    header = f"📰 *BBC Mundo — Artículo del día*\n\n*{title}*\n"
-    if pub_date:
-        header += f"_Publicado: {pub_date[:10]}_\n"
-    header += f"🔗 {original_url}\n\n"
-
-    content = f"{header}{simplified_text}"
-
-    discord_ok = _discord_post(content)
-    telegram_ok = _telegram_post(content)
-
-    # Try plain text for Telegram if Markdown fails
-    if not telegram_ok and content != f"{header}{simplified_text}".replace(
-        "*", ""
-    ).replace("_", ""):
-        plain = f"{header}{simplified_text}".replace("*", "").replace("_", "")
-        telegram_ok = _telegram_post(plain, parse_mode=None)
-
-# Record successfully sent URLs so we don't repeat them
-    if discord_ok or telegram_ok:
-        mark_sent(original_url)
-
-    return {"discord": discord_ok, "telegram": telegram_ok}
+if __name__ == "__main__":
+    success = asyncio.run(run())
+    sys.exit(0 if success else 1)

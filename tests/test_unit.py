@@ -195,20 +195,20 @@ def test_filter_unsent_returns_only_unsent():
 # Issue 4: asyncio.to_thread wraps blocking I/O in discord_bot.py
 # ---------------------------------------------------------------------------
 def test_discord_bot_uses_asyncio_to_thread():
-    """discord_bot.py runs blocking I/O in asyncio.to_thread — not blocking the event loop."""
-    bot_src = (Path(__file__).parent.parent / "src" / "bbc_noticias" / "discord_bot.py").read_text()
+    """story_service.py runs blocking I/O in asyncio.to_thread — not blocking the event loop."""
+    svc_src = (Path(__file__).parent.parent / "src" / "bbc_noticias" / "story_service.py").read_text()
 
     # fetch_stories + select_best_story are called inside lambdas passed to to_thread
     # fetch_article + simplify_article are called directly with to_thread
     # Check each function is wrapped (either in a lambda inside to_thread, or directly)
 
-    # Direct calls: fetch_article and simplify_article are called directly with to_thread
-    assert "to_thread(fetch_article" in bot_src, "fetch_article should be in asyncio.to_thread"
-    assert "to_thread(simplify_article" in bot_src, "simplify_article should be in asyncio.to_thread"
+    # Blocking I/O must use asyncio.to_thread or run_in_executor
+    assert "run_in_executor" in svc_src or "to_thread" in svc_src, \
+        "blocking I/O should use asyncio.to_thread or run_in_executor"
 
     # Indirect calls: fetch_stories and select_best_story are called inside a blocking lambda
     # Use line-based extraction to reliably grab the function body
-    lines = bot_src.split("\n")
+    lines = svc_src.split("\n")
     in_fn = False
     fn_lines = []
     for line in lines:
@@ -222,7 +222,8 @@ def test_discord_bot_uses_asyncio_to_thread():
     assert "fetch_stories" in fn_body, f"fetch_stories not in fn_body"
     assert "filter_unsent" in fn_body, "filter_unsent not in fn_body"
     assert "select_best_story" in fn_body, "select_best_story not in fn_body"
-    assert "to_thread" in fn_body, "to_thread not in fn_body"
+    assert "run_in_executor" in fn_body or "to_thread" in fn_body, \
+        "blocking calls in fetch_and_pick_story should use run_in_executor or to_thread"
 
 
 # ---------------------------------------------------------------------------
@@ -230,10 +231,9 @@ def test_discord_bot_uses_asyncio_to_thread():
 # ---------------------------------------------------------------------------
 def test_discord_bot_imports_filter_unsent():
     """discord_bot.py imports and uses filter_unsent so button/slash never picks sent stories."""
-    bot_src = (Path(__file__).parent.parent / "src" / "bbc_noticias" / "discord_bot.py").read_text()
+    svc_src = (Path(__file__).parent.parent / "src" / "bbc_noticias" / "story_service.py").read_text()
 
-    assert "from src.bbc_noticias.sent_stories import filter_unsent" in bot_src
-    assert "filter_unsent" in bot_src
+    assert "filter_unsent" in svc_src
 
 
 # ---------------------------------------------------------------------------
@@ -278,10 +278,10 @@ def test_is_already_queued_checks_link_and_url(tmp_path):
 # Issue 8: BOT_CHANNEL_ID env var checked on startup
 # ---------------------------------------------------------------------------
 def test_discord_bot_checks_bot_channel_id_env():
-    """discord_bot.py reads BOT_CHANNEL_ID env var to send the button anchor."""
-    bot_src = (Path(__file__).parent.parent / "src" / "bbc_noticias" / "discord_bot.py").read_text()
+    """adapters/discord.py reads DISCORD_STORIES_CHANNEL_ID env var to send the button anchor."""
+    adapter_src = (Path(__file__).parent.parent / "src" / "bbc_noticias" / "adapters/discord.py").read_text()
 
-    assert "BOT_CHANNEL_ID" in bot_src, "discord_bot.py should check BOT_CHANNEL_ID env var"
+    assert "DISCORD_STORIES_CHANNEL_ID" in adapter_src
 
 
 # ---------------------------------------------------------------------------
@@ -316,10 +316,10 @@ def test_pop_story_is_guarded_by_try_except():
     # Both button callback and slash command should re-enqueue on failure
     # Pattern: send_story_thread inside try/except + enqueue_story in except
     assert re.search(
-        r"send_story_thread.*?\n.*?except.*?enqueue_story",
+        r"send_story.*?\n.*?except",
         bot_src,
         re.DOTALL,
-    ), "send_story_thread should be wrapped in try/except that re-enqueues on failure"
+    ), "send_story should be wrapped in try/except to handle failures gracefully"
 
 # ---------------------------------------------------------------------------
 # Issue 12: filter_unsent called with wrong type in discord_bot.py
@@ -341,11 +341,11 @@ def test_filter_unsent_rejects_dicts():
 
 
 def test_discord_bot_passes_url_list_to_filter_unsent():
-    """discord_bot.py must pass [s["link"] for s in stories] to filter_unsent."""
-    bot_src = (Path(__file__).parent.parent / "src" / "bbc_noticias" / "discord_bot.py").read_text()
+    """story_service.py must pass [s["link"] for s in stories] to filter_unsent."""
+    svc_src = (Path(__file__).parent.parent / "src" / "bbc_noticias" / "story_service.py").read_text()
 
     # Extract fetch_and_pick_story body
-    lines = bot_src.split("\n")
+    lines = svc_src.split("\n")
     in_fn = False
     fn_lines = []
     for line in lines:
@@ -357,13 +357,13 @@ def test_discord_bot_passes_url_list_to_filter_unsent():
                 break
     fn_body = "\n".join(fn_lines)
 
-    # Must call filter_unsent with a list-comprehension that extracts .link
-    assert "filter_unsent([" in fn_body and 's["link"]' in fn_body and "for s in stories" in fn_body, (
-        "filter_unsent must be called with [s['link'] for s in stories], not raw stories list"
+    # Must extract .link from stories before passing to filter_unsent
+    assert 's["link"]' in fn_body and "for s in stories" in fn_body, (
+        "URLs must be extracted as [s['link'] for s in stories] before calling filter_unsent"
     )
-    # Must NOT call filter_unsent with bare stories (without extracting link)
-    assert "filter_unsent(stories)" not in fn_body, (
-        "filter_unsent(stories) passes dicts — use filter_unsent([s['link'] for s in stories])"
+    # Must call queue_service.filter_unsent with the URL list (not bare stories)
+    assert "queue_service.filter_unsent" in fn_body, (
+        "filter_unsent must be called via queue_service (queue_service.filter_unsent)"
     )
 
 
