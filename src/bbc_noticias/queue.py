@@ -34,6 +34,8 @@ def _save(data: dict) -> None:
 def enqueue_story(story: dict) -> None:
     """Add a story to the pending queue (called by cron after webhook send)."""
     data = _load()
+    if is_already_queued(story.get("link") or story.get("url") or ""):
+        return
     data["pending"].append(
         {
             **story,
@@ -71,6 +73,8 @@ def is_already_queued(url: str) -> bool:
 
     Stories from RSS use 'link' as the URL key.
     """
+    if not url:
+        return False
     data = _load()
     for s in data["pending"] + data["sent"]:
         if s.get("link") == url or s.get("url") == url:

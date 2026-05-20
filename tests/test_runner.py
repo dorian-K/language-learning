@@ -50,75 +50,72 @@ def run_test(name, fn, *args):
 def run():
     print("\n=== rss.py: parse_rss_datetime ===")
     ok = 0
-    bok += int(
-        run_test("parses RFC822 GMT", parse_rss_datetime, "Fri, 08 May 2026 12:00:00 GMT")
-        is not None
-    )
+    ok += run_test("parses RFC822 GMT", parse_rss_datetime, "Fri, 08 May 2026 12:00:00 GMT")
     r = parse_rss_datetime("Fri, 08 May 2026 12:00:00 GMT")
     assert r is not None and r.year == 2026
-    bok += int(run_test("None input", lambda: parse_rss_datetime(None) is None))
-    bok += int(run_test("empty string", lambda: parse_rss_datetime("") is None))
+    ok += run_test("None input", lambda: parse_rss_datetime(None) is None)
+    ok += run_test("empty string", lambda: parse_rss_datetime("") is None)
 
     print("\n=== scraper.py: _clean_html ===")
 
     def clean(html):
         return _clean_html(html)
 
-    bok += run_test("strips tags", lambda: clean("<p>Hello <b>world</b></p>") == "Hello world")
-    bok += run_test(
+    ok += run_test("strips tags", lambda: clean("<p>Hello <b>world</b></p>") == "Hello world")
+    ok += run_test(
         "removes scripts", lambda: "alert" not in clean("<script>alert('x')</script><p>OK</p>")
     )
-    bok += run_test("decodes &amp;", lambda: "&" in clean("&amp;"))
-    bok += run_test("decodes &lt; &gt;", lambda: "<" in clean("&lt;") and ">" in clean("&gt;"))
-    bok += run_test("normalizes whitespace", lambda: "  " not in clean("<p>  Hello   world  </p>"))
+    ok += run_test("decodes &amp;", lambda: "&" in clean("&amp;"))
+    ok += run_test("decodes &lt; &gt;", lambda: "<" in clean("&lt;") and ">" in clean("&gt;"))
+    ok += run_test("normalizes whitespace", lambda: "  " not in clean("<p>  Hello   world  </p>"))
 
     print("\n=== scraper.py: _extract_article_body ===")
-    bok += run_test(
+    ok += run_test(
         "extracts <article>",
         lambda: _extract_article_body("<article><p>Text</p></article>") is not None,
     )
-    bok += run_test(
+    ok += run_test(
         "extracts data-component",
         lambda: (
             "text"
             in (_extract_article_body('<div data-component="article-body"><p>text</p></div>') or "")
         ),
     )
-    bok += run_test(
+    ok += run_test(
         "extracts body-content id",
         lambda: _extract_article_body('<section id="body-content"><p>C</p></section>') is not None,
     )
-    bok += run_test(
+    ok += run_test(
         "returns None on miss", lambda: _extract_article_body("<div>nothing</div>") is None
     )
 
     print("\n=== scraper.py: _fallback_extract ===")
-    bok += run_test(
+    ok += run_test(
         "extracts <main>", lambda: _fallback_extract("<main>fallback</main>") is not None
     )
-    bok += run_test(
+    ok += run_test(
         "returns None when no main", lambda: _fallback_extract("<div>no main</div>") is None
     )
 
     print("\n=== config.py: Config defaults ===")
     cfg = Config()
-    bok += run_test(
+    ok += run_test(
         "default model is openrouter/auto", lambda: cfg.openrouter_model == "openrouter/auto"
     )
-    bok += run_test("max_age_hours default 24", lambda: cfg.max_age_hours == 24)
-    bok += run_test(
+    ok += run_test("max_age_hours default 24", lambda: cfg.max_age_hours == 24)
+    ok += run_test(
         "max_stories_for_selection default 15", lambda: cfg.max_stories_for_selection == 15
     )
-    bok += run_test("dry_run default False", lambda: cfg.dry_run is False)
+    ok += run_test("dry_run default False", lambda: cfg.dry_run is False)
 
     print("\n=== config.py: dry_run parsing ===")
     for val in ("true", "1", "yes"):
         cfg = Config(dry_run=val)
         assert cfg.dry_run is True, f"failed for {val}"
-    bok += run_test(
+    ok += run_test(
         "true/1/yes → True", lambda: all(Config(dry_run=v).dry_run for v in ("true", "1", "yes"))
     )
-    bok += run_test(
+    ok += run_test(
         "false/0/no/'' → False",
         lambda: all(not Config(dry_run=v).dry_run for v in ("false", "0", "no", "")),
     )
@@ -126,13 +123,13 @@ def run():
     print("\n=== config.py: validate ===")
     cfg_missing = Config(openrouter_api_key="")
     issues = cfg_missing.validate()
-    bok += run_test(
+    ok += run_test(
         "missing API key flagged", lambda: any("OPENROUTER_API_KEY" in i for i in issues)
     )
 
     cfg_no_messenger = Config(openrouter_api_key="key")
     issues = cfg_no_messenger.validate()
-    bok += run_test(
+    ok += run_test(
         "missing messenger flagged",
         lambda: any(("DISCORD" in i or "TELEGRAM" in i) for i in issues),
     )
@@ -140,7 +137,7 @@ def run():
     cfg_ok = Config(
         openrouter_api_key="key", discord_webhook_url="https://discord.com/api/webhooks/123"
     )
-    bok += run_test("valid config: no issues", lambda: len(cfg_ok.validate()) == 0)
+    ok += run_test("valid config: no issues", lambda: len(cfg_ok.validate()) == 0)
 
     print(f"\n{'=' * 40}")
     print(f"Results: {ok} passed")
