@@ -37,7 +37,7 @@ def simplify(article_dict: dict, llm: LLM) -> dict:
         article_text=article_text,
     )
 
-    computed_max_tokens = min(15000, max(3000, 2000 + len(article_text) // 4))
+    computed_max_tokens = min(15000, max(4000, 2000 + len(article_text) // 2))
     logger.info("[simplifier] max_tokens=%s for article text len=%s", computed_max_tokens, len(article_text))
 
     raw = llm.complete(
