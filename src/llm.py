@@ -1,6 +1,9 @@
 import json
+import logging
 import os
 import re
+
+logger = logging.getLogger(__name__)
 
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -51,6 +54,10 @@ def invoke_llm(messages, print_reasoning=False, want_json=True):
 
     # Clean and parse the text into an actual Python Dictionary
     clean_json_str = extract_json_from_text(raw_output)
-    vocab_data = json.loads(clean_json_str)
+    try:
+        vocab_data = json.loads(clean_json_str)
+    except json.JSONDecodeError as e:
+        logger.error("[llm] extract_vocab JSON parse error: %s | raw: %s", e, clean_json_str[:200])
+        raise
 
     return vocab_data
