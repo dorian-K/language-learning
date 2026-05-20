@@ -17,6 +17,8 @@ OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "openrouter/auto")
 OPENROUTER_BASE = "https://openrouter.ai/api/v1"
 
+REQUEST_TIMEOUT = 120  # seconds — prevents indefinite blocking of event loop
+
 
 class LLM:
     def __init__(self):
@@ -43,6 +45,7 @@ class LLM:
             ],
             temperature=temperature,
             max_tokens=max_tokens,
+            timeout=REQUEST_TIMEOUT,
         )
         content = response.choices[0].message.content
         if content is None:
