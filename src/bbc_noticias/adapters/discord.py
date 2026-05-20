@@ -29,35 +29,37 @@ class DiscordAdapter(PlatformAdapter):
 
     # ── PlatformAdapter interface ─────────────────────────────────────────
 
-    async def post_channel(self, payload: StoryPayload) -> str:
+    async def post_channel(self, payload: StoryPayload, channel_override=None) -> str:
         """
-        Post headline to the stories forum channel.
+        Post headline to the stories forum channel (or override channel).
         Returns the message ID.
         """
-        channel = self.client.get_channel(STORIES_CHANNEL_ID)
+        channel = channel_override or self.client.get_channel(STORIES_CHANNEL_ID)
         if not isinstance(channel, discord.TextChannel):  # type: ignore[reportAttributeAccessIssue]
-            raise RuntimeError(f"Channel {STORIES_CHANNEL_ID} not found or not a TextChannel")
+            raise RuntimeError(f"Channel {getattr(channel, 'id', '?')} not found or not a TextChannel")
 
         msg = await channel.send(payload.headline)
         logger.info(
-            "[discord] Posted headline to channel %s: %s", STORIES_CHANNEL_ID, payload.headline[:60]
+            "[discord] Posted headline to channel %s: %s",
+            getattr(channel, 'id', STORIES_CHANNEL_ID),
+            payload.headline[:60],
         )
         return str(msg.id)
 
-    async def create_thread(self, payload: StoryPayload, channel_msg_id: str) -> str:
+    async def create_thread(self, payload: StoryPayload, channel_msg_id: str, channel_override=None) -> str:
         """
         Create a public thread on the channel message for discussion.
         Returns the thread ID.
         """
-        channel = self.client.get_channel(STORIES_CHANNEL_ID)
+        channel = channel_override or self.client.get_channel(STORIES_CHANNEL_ID)
         if not isinstance(channel, discord.TextChannel):  # type: ignore[reportAttributeAccessIssue]
-            raise RuntimeError(f"Channel {STORIES_CHANNEL_ID} not found or not a TextChannel")
+            raise RuntimeError(f"Channel {getattr(channel, 'id', '?')} not found or not a TextChannel")
 
         try:
             message = await channel.fetch_message(int(channel_msg_id))
         except discord.NotFound:  # type: ignore[reportAttributeAccessIssue]
             raise RuntimeError(
-                f"Message {channel_msg_id} not found in channel {STORIES_CHANNEL_ID}"
+                f"Message {channel_msg_id} not found in channel {getattr(channel, 'id', '?')}"
             ) from None
 
         thread_name = _make_thread_name(payload.topic_title)
@@ -79,9 +81,9 @@ class DiscordAdapter(PlatformAdapter):
         await thread.send(content)  # type: ignore[reportAttributeAccessIssue]
         logger.info("[discord] Posted article to thread %s", thread_id)
 
-    async def add_reaction(self, channel_msg_id: str) -> None:
+    async def add_reaction(self, channel_msg_id: str, channel_override=None) -> None:
         """Add a checkmark reaction to the channel message."""
-        channel = self.client.get_channel(STORIES_CHANNEL_ID)
+        channel = channel_override or self.client.get_channel(STORIES_CHANNEL_ID)
         if not isinstance(channel, discord.TextChannel):  # type: ignore[reportAttributeAccessIssue]
             return
         try:
@@ -92,13 +94,18 @@ class DiscordAdapter(PlatformAdapter):
 
     # ── Full flow ────────────────────────────────────────────────────────
 
-    async def send_story(self, payload: StoryPayload) -> None:
+    async def send_story(self, payload: StoryPayload, interaction_channel=None) -> None:
         """
         Full flow: post headline → react → open thread → post article → mark sent.
+
+        If interaction_channel is provided (user-initiated command), also send a reply
+        to that channel confirming publication.
         """
-        msg_id = await self.post_channel(payload)
-        await self.add_reaction(msg_id)
-        thread_id = await self.create_thread(payload, msg_id)
+        channel_override = interaction_channel  # shorthand
+
+        msg_id = await self.post_channel(payload, channel_override)
+        await self.add_reaction(msg_id, channel_override)
+        thread_id = await self.create_thread(payload, msg_id, channel_override)
         await self.post_thread(thread_id, payload)
         self.mark_sent(payload.url)
         logger.info("[discord] Story sent: %s", payload.headline[:60])

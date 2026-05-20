@@ -17,6 +17,17 @@ from .adapters.discord import DiscordAdapter
 from .queue import enqueue_story
 from .story_service import get_story_payload
 
+import dataclasses
+import logging
+import os
+
+import discord
+from discord import app_commands
+
+from .adapters.discord import DiscordAdapter
+from .queue import enqueue_story
+from .story_service import get_story_payload
+
 BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN", "")
 STORIES_CHANNEL_ID = int(os.getenv("DISCORD_STORIES_CHANNEL_ID", "0"))
 FORUM_CHANNEL_ID = int(os.getenv("DISCORD_FORUM_CHANNEL_ID", "0"))
@@ -73,7 +84,7 @@ class StoryButton(discord.ui.Button):
             return
 
         try:
-            await client.adapter.send_story(payload)
+            await client.adapter.send_story(payload, interaction_channel=interaction.channel)
             await interaction.followup.send("✅ ¡Historia enviada!", ephemeral=True)
         except Exception as e:
             logger.error("[bot] send_story failed, re-enqueueing: %s", e)
@@ -111,7 +122,7 @@ async def historia(interaction: discord.Interaction, hours: int = 48):
         return
 
     try:
-        await client.adapter.send_story(payload)
+        await client.adapter.send_story(payload, interaction_channel=interaction.channel)
         await interaction.followup.send("✅ ¡Historia publicada!", ephemeral=True)
     except Exception as e:
         logger.error("[historia] send_story failed: %s", e)
@@ -124,6 +135,10 @@ async def historia(interaction: discord.Interaction, hours: int = 48):
 
 
 def main():
+    if not BOT_TOKEN:
+        raise RuntimeError("DISCORD_BOT_TOKEN is not set")
+    if STORIES_CHANNEL_ID == 0:
+        raise RuntimeError("DISCORD_STORIES_CHANNEL_ID is not set (or is 0)")
     client.run(BOT_TOKEN, log_handler=None)
 
 

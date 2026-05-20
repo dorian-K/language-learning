@@ -38,41 +38,33 @@ class PlatformAdapter(ABC):
     """
 
     @abstractmethod
-    async def post_channel(self, payload: StoryPayload) -> str:
-        """
-        Post the headline to the channel/forum.
-        Returns the platform message ID of the posted headline.
-        """
+    async def post_channel(self, payload: StoryPayload, interaction_channel=None) -> str:
         ...
 
     @abstractmethod
-    async def create_thread(self, payload: StoryPayload, channel_msg_id: str) -> str:
-        """
-        Open a thread/topic on the given channel message.
-        Returns the thread/topic ID.
-        """
+    async def create_thread(self, payload: StoryPayload, channel_msg_id: str, interaction_channel=None) -> str:
         ...
 
     @abstractmethod
     async def post_thread(self, thread_id: str, payload: StoryPayload) -> None:
-        """Post the simplified article to the thread/topic."""
         ...
 
     @abstractmethod
-    async def add_reaction(self, channel_msg_id: str) -> None:
-        """React to the channel message (e.g. ✅ to acknowledge)."""
+    async def add_reaction(self, channel_msg_id: str, interaction_channel=None) -> None:
         ...
 
     # ── Convenience ────────────────────────────────────────────────────────
 
-    async def send_story(self, payload: StoryPayload) -> None:
+    async def send_story(self, payload: StoryPayload, interaction_channel=None) -> None:
         """
         Full flow: post headline → react → open thread → post article → mark sent.
-        Platforms that don't support threads can override to just post_channel.
+
+        interaction_channel: if provided, used as the target channel instead of the
+        configured STORIES_CHANNEL_ID (useful for replying in the command-issued channel).
         """
-        msg_id = await self.post_channel(payload)
-        await self.add_reaction(msg_id)
-        thread_id = await self.create_thread(payload, msg_id)
+        msg_id = await self.post_channel(payload, interaction_channel)
+        await self.add_reaction(msg_id, interaction_channel)
+        thread_id = await self.create_thread(payload, msg_id, interaction_channel)
         await self.post_thread(thread_id, payload)
         self.mark_sent(payload.url)
         logger.info("[%s] Story sent: %s", self.__class__.__name__, payload.headline[:60])
