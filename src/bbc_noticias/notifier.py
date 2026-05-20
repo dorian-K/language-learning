@@ -135,7 +135,7 @@ if __name__ == "__main__":
 # ── bot.py backward-compatibility shim ─────────────────────────────────────────
 
 
-def send_article(title: str, original_url: str, simplified_text: str, pub_date: str) -> dict:
+def send_article(title: str, original_url: str, simplified_text: str, pub_date: str | None = None) -> dict:
     """
     Sync wrapper for sending via Discord webhook.
     Uses _build_story_text to format the message properly.

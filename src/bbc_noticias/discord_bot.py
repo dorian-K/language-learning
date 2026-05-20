@@ -12,7 +12,7 @@ import os
 import discord
 from discord import app_commands
 
-from . import queue_service
+from .queue import enqueue_story
 from .adapters.discord import DiscordAdapter
 from .story_service import get_story_payload
 
@@ -73,9 +73,9 @@ class StoryButton(discord.ui.Button):
             await interaction.followup.send("✅ ¡Historia enviada!", ephemeral=True)
         except Exception as e:
             logger.error("[bot] send_story failed, re-enqueueing: %s", e)
-            queue_service.enqueue_story(
+            enqueue_story(
                 {
-                    "title": payload.headline,
+                    "title": payload.topic_title,
                     "link": payload.url,
                 }
             )

@@ -107,11 +107,11 @@ class DiscordAdapter(PlatformAdapter):
     # ── Sent-stories tracking ────────────────────────────────────────────
 
     def story_is_sent(self, url: str) -> bool:
-        from .. import queue_service
+        from ..queue_service import queue_service as _qs
 
-        return queue_service.queue_service.is_sent(url)
+        return _qs.is_sent(url)
 
     def mark_sent(self, url: str) -> None:
-        from .. import queue_service
+        from ..queue_service import queue_service as _qs
 
-        queue_service.queue_service.mark_sent(url)
+        _qs.mark_sent(url)

@@ -49,6 +49,18 @@ I found some anki deck with the 1000 most common spanish words, but it wasn't th
 
 A daily Spanish language learning bot: fetches BBC Mundo RSS → selects the most relevant story via AI → simplifies the article for B1 learners (with English word translations) → sends it to Discord or Telegram.
 
+### How it works
+
+The bot has **three separate entry points**, each with a distinct role:
+
+| Entry point | Command | Role |
+|---|---|---|
+| **Daily cron** | `python -m src.bbc_noticias.bot` | Runs at 08:00 CET via crontab. Posts a headline to Discord, then queues the full story. |
+| **Discord bot** | `python -m src.bbc_noticias.discord_bot` | Long-running. Handles `/historia` slash commands and "Nueva historia" button clicks. |
+| **Telegram bot** | `python -m src.bbc_noticias.telegram_bot` | Long-running. Same as Discord bot but for Telegram. |
+
+**Daily flow:** Cron → posts headline (with button) → user clicks button → bot sends full story to user's DM.
+
 ### Setup
 
 1. Copy `.env.example` to `.env` and fill in your keys:
