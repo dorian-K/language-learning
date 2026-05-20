@@ -46,8 +46,14 @@ class LLM:
         )
         content = response.choices[0].message.content
         if content is None:
+            # Dump full response structure for debugging
+            logger.error(
+                "[llm] LLM returned None content. Full response: %s | Choice: %s | Finish reason: %s",
+                response,
+                response.choices[0],
+                response.choices[0].finish_reason,
+            )
             refusal = getattr(response.choices[0].message, "refusal", None)
-            logger.error("[llm] LLM returned None content. Refusal: %s", refusal)
             raise TypeError(f"LLM returned None (refusal: {refusal})")
         if not isinstance(content, str):
             logger.error("[llm] LLM returned non-string type: %s", type(content))
