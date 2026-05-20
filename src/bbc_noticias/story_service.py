@@ -78,9 +78,8 @@ async def simplify_story(story: dict) -> StoryPayload:
     Fetch article, simplify text, format for posting.
     Returns a StoryPayload ready to be sent to adapters.
     """
-    article_text = await asyncio.get_event_loop().run_in_executor(
-        None, fetch_article, story["link"]
-    )
+    loop = asyncio.get_event_loop()
+    article_text = await loop.run_in_executor(None, fetch_article, story["link"])
     if not article_text:
         raise ValueError(f"Could not fetch article: {story['link']}")
 
@@ -92,7 +91,7 @@ async def simplify_story(story: dict) -> StoryPayload:
         "url": story.get("link", ""),
     }
 
-    simplified = _call_simplify(article_dict, llm)
+    simplified = await loop.run_in_executor(None, _call_simplify, article_dict, llm)
     retries = 2
     for attempt in range(1, retries + 1):
         if simplified is not None:
@@ -101,7 +100,7 @@ async def simplify_story(story: dict) -> StoryPayload:
             "[simplify_story] Simplification returned None (attempt %s/%s), retrying: %s",
             attempt, retries, story["link"],
         )
-        simplified = _call_simplify(article_dict, llm)
+        simplified = await loop.run_in_executor(None, _call_simplify, article_dict, llm)
 
     if simplified is None:
         raise TypeError(f"Simplification failed after {retries} attempts for: {story['link']}")
