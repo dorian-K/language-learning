@@ -31,11 +31,12 @@ def simplify(article_dict: dict, llm: LLM) -> dict:
     if len(article_text) > max_chars:
         article_text = article_text[:max_chars] + "\n[... texto truncado ...]"
 
-    prompt = SIMPLIFY_PROMPT.format(
-        profile=DORIAN_PROFILE,
-        hard_words=VOCAB_HARD_LIST,
-        article_text=article_text,
-    )
+    # Use %-formatting to avoid .format()'s brace-escaping issues with JSON
+    prompt = SIMPLIFY_PROMPT % {
+        "profile": DORIAN_PROFILE,
+        "hard_words": VOCAB_HARD_LIST,
+        "article_text": article_text,
+    }
 
     computed_max_tokens = min(60000, max(16000, 8000 + len(article_text) // 2))
     logger.info("[simplifier] max_tokens=%s for article text len=%s", computed_max_tokens, len(article_text))
