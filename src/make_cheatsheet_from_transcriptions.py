@@ -94,12 +94,12 @@ def process_single_transcript(filepath, previous_cheatsheet, extraction_rules):
         stream=False,
         max_tokens=100000,
     )
-    raw_output = response.choices[0].message.content
+    assert response.choices[0].finish_reason == "stop", (
+        f"Model output was cut off {response.choices[0].finish_reason}."
+    )
+    raw_output: str = response.choices[0].message.content or ""
 
     print(f"finish reason: {response.choices[0].finish_reason}")
-    assert response.choices[0].finish_reason == "stop", (
-        f"Model output was cut off {response.choices[0].finish_reason}. Consider increasing max_tokens or checking for errors."
-    )
 
     # Save the formatted JSON to the output folder
     with open(output_filepath, "w", encoding="utf-8") as out_f:
@@ -111,9 +111,8 @@ def process_single_transcript(filepath, previous_cheatsheet, extraction_rules):
         raise ValueError(
             f"Output is too long! This might indicate the model is not following instructions properly. Check the output file for {filename} to see if it looks correct."
         )
-    if False:  # print reasoning
-        reasoning_process = response.choices[0].message.reasoning_content
-        print(f"Model's reasoning process for {filename}:\n{reasoning_process}\n")
+    if False:  # print reasoning (not available in openai>=2.x)
+        print(f"Model's reasoning process for {filename}: (see openai docs for reasoning content)")
 
     return output_filepath
 
@@ -146,9 +145,9 @@ Now, based on the combined content of these 10 cheatsheets, create a single, com
         max_tokens=200000,
     )
     assert response.choices[0].finish_reason == "stop", (
-        f"Model output was cut off {response.choices[0].finish_reason}. Consider increasing max_tokens or checking for errors."
+        f"Model output was cut off {response.choices[0].finish_reason}."
     )
-    compacted_cheatsheet = response.choices[0].message.content
+    compacted_cheatsheet: str = response.choices[0].message.content or ""
 
     # Save the compacted cheatsheet
     with open(out_filepath, "w", encoding="utf-8") as out_f:
@@ -179,12 +178,8 @@ def process_transcripts():
 
     txt_files = [t for t in txt_files if os.path.basename(t)]  # Skip hidden files
     prev_cheat = None
-    i = 0
     for filepath in sorted(txt_files):
-        i += 1
         prev_cheat = process_single_transcript(filepath, prev_cheat, extraction_rules)
-        # if i > 10:
-        #   break
 
     print("\nAll transcripts processed!")
 

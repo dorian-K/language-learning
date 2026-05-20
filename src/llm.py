@@ -44,10 +44,10 @@ def invoke_llm(messages, print_reasoning=False, want_json=True):
     # The final JSON response
     raw_output = response.choices[0].message.content
 
-    # (Optional: If you want to see the model's internal "thoughts", you can access them via:)
-    reasoning_process = response.choices[0].message.reasoning_content
+    # Note: reasoning_content is not available in openai>=2.x with deepseek-reasoner
+    # Reasoning is instead delivered via a separate stream/event — see openai docs
     if print_reasoning:
-        print(f"Model's reasoning process:\n{reasoning_process}\n")
+        print("Reasoning not available via message.reasoning_content in openai>=2.x")
 
     # Clean and parse the text into an actual Python Dictionary
     clean_json_str = extract_json_from_text(raw_output)

@@ -58,13 +58,10 @@ class DiscordAdapter(PlatformAdapter):
         except discord.NotFound:  # type: ignore[reportAttributeAccessIssue]
             raise RuntimeError(
                 f"Message {channel_msg_id} not found in channel {STORIES_CHANNEL_ID}"
-            )
+            ) from None
 
         thread_name = _make_thread_name(payload.topic_title)
-        thread = await message.create_thread(
-            name=thread_name,
-            invitable=False,  # public thread
-        )
+        thread = await message.create_thread(name=thread_name)
         logger.info("[discord] Created thread '%s' (id=%s)", thread_name, thread.id)
         return str(thread.id)
 
@@ -73,11 +70,13 @@ class DiscordAdapter(PlatformAdapter):
         thread = self.client.get_channel(int(thread_id))
         if thread is None:
             raise RuntimeError(f"Thread {thread_id} not found")
+        if not isinstance(thread, discord.Thread):
+            raise RuntimeError(f"Channel {thread_id} is not a thread")
 
         content = (
             f"> {payload.summary}\n\n{payload.bullets}\n\n🔗 [Artículo original]({payload.url})"
         )
-        await thread.send(content)
+        await thread.send(content)  # type: ignore[reportAttributeAccessIssue]
         logger.info("[discord] Posted article to thread %s", thread_id)
 
     async def add_reaction(self, channel_msg_id: str) -> None:
