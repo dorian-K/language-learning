@@ -18,6 +18,20 @@ from .simplifier import simplify
 logger = logging.getLogger(__name__)
 
 
+def _call_simplify(article_dict: dict, llm: LLM) -> dict | None:
+    """
+    Wrapper that catches TypeError (None content from LLM) and returns None
+    instead of propagating. This lets the caller retry or handle gracefully.
+    """
+    try:
+        return simplify(article_dict, llm)
+    except TypeError as e:
+        if "None" in str(e):
+            logger.warning("[simplifier] LLM returned None on simplify, will retry: %s", e)
+            return None
+        raise
+
+
 def _format_headline(story: dict) -> str:
     """Add emoji + bold title for Discord/Telegram display."""
     emoji = "📰"
@@ -78,7 +92,19 @@ async def simplify_story(story: dict) -> StoryPayload:
         "url": story.get("link", ""),
     }
 
-    simplified = await asyncio.get_event_loop().run_in_executor(None, simplify, article_dict, llm)
+    simplified = _call_simplify(article_dict, llm)
+    retries = 2
+    for attempt in range(1, retries + 1):
+        if simplified is not None:
+            break
+        logger.warning(
+            "[simplify_story] Simplification returned None (attempt %s/%s), retrying: %s",
+            attempt, retries, story["link"],
+        )
+        simplified = _call_simplify(article_dict, llm)
+
+    if simplified is None:
+        raise TypeError(f"Simplification failed after {retries} attempts for: {story['link']}")
 
     headline = _format_headline(story)
 
