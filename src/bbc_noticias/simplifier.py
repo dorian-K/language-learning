@@ -37,6 +37,9 @@ def simplify(article_dict: dict, llm: LLM) -> dict:
         article_text=article_text,
     )
 
+    computed_max_tokens = min(15000, max(3000, 2000 + len(article_text) // 4))
+    logger.info("[simplifier] max_tokens=%s for article text len=%s", computed_max_tokens, len(article_text))
+
     raw = llm.complete(
         system=(
             "You are a Spanish language tutor. Always respond with ONLY valid JSON "
@@ -45,7 +48,7 @@ def simplify(article_dict: dict, llm: LLM) -> dict:
         ),
         user=prompt,
         temperature=0.6,
-        max_tokens=min(15000, max(3000, 2000 + len(article_text) // 4)),
+        max_tokens=computed_max_tokens,
     )
 
     # Strip markdown code fences if present
