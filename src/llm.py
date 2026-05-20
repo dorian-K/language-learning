@@ -1,3 +1,4 @@
+import json
 import os
 import re
 
@@ -32,7 +33,7 @@ def extract_json_from_text(text):
     return text.strip()
 
 
-def invoke_llm(messages, print_reasoning=False, json=True):
+def invoke_llm(messages, print_reasoning=False, want_json=True):
     response = client.chat.completions.create(
         model="deepseek-reasoner",
         messages=messages,

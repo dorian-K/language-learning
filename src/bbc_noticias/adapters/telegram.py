@@ -179,7 +179,8 @@ class TelegramAdapter(PlatformAdapter):
         if self.channel_chat_id:
             await self._post_channel_anchor()
 
-        await self._app.run_polling(drop_pending_updates=True)
+        if self._app:
+            await self._app.run_polling(drop_pending_updates=True)
         logger.info("[telegram] Bot started")
 
     async def _post_channel_anchor(self) -> None:
@@ -218,8 +219,10 @@ class TelegramAdapter(PlatformAdapter):
         Returns a synthetic message ID (uuid4 — Telegram doesn't need real IDs for DMs).
         """
         if not self._app or not self.channel_chat_id:
-            # Fall back to DM
-            return await self._post_dm(payload)
+            # No channel configured — this shouldn't happen in normal operation since
+            # a channel is always set. Fall back to returning a sentinel (button will
+            # still work via send_story_to_dm).
+            return "no-channel"
 
         keyboard = [[InlineKeyboardButton("📰 Nueva historia", callback_data="nh")]]
         markup = InlineKeyboardMarkup(keyboard)

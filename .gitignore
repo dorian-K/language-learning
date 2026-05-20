@@ -21,3 +21,5 @@ venv/
 env/
 .mypy_cache/
 .vscode
+*.egg-info/
+*.egg-info

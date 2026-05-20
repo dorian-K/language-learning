@@ -1,0 +1,10 @@
+{
+  "include": ["src"],
+  "exclude": ["__pycache__", ".venv", "*.pyc"],
+  "pythonVersion": "3.11",
+  "typeCheckingMode": "basic",
+  "reportMissingTypeStubs": false,
+  "reportUnusedImport": "warning",
+  "reportMissingImports": false,
+  "pythonPlatform": "Linux"
+}

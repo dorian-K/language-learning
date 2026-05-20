@@ -7,6 +7,24 @@ on:
     branches: [main]
 
 jobs:
+  pyright:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: "pip"
+          cache-dependency-path: pyproject.toml
+
+      - name: Install pyright
+        run: pip install pyright
+
+      - name: Run pyright
+        run: pyright
+
   test:
     runs-on: ubuntu-latest
     steps:
