@@ -114,9 +114,9 @@ unified_model = genanki.Model(
         <div class="flashcard">
             <div class="word">{{Front_Word}}</div>
             <div class="example-sentence">{{Front_Sentence}}</div>
-            
+
             <hr id="answer" />
-            
+
             <div class="definition">{{Back_Word}}</div>
             <div class="sentence-translation">{{Back_Sentence}}</div>
         </div>

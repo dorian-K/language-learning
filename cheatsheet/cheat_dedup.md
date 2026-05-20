@@ -50,7 +50,7 @@
 | **-tial** | **-cial** | *Essential → Esencial*, *Spatial → Espacial* |
 
 *   **Noun to Verb:** Remove **-ción** and add **-ar** (e.g., *Confirmación → Confirmar*). Exception: *Demostración → Demostrar* (drops the 'n').
-*   **Verb Derivations:** 
+*   **Verb Derivations:**
     *   "-tain" = *-tener* (*Contain → Contener*, *Maintain → Mantener*).
     *   "-pose" = *-poner* (*Compose → Componer*, *Suppose → Suponer*).
 *   **Etymological Shifts:** Latin 'F' → Spanish silent 'H' (*Fact → Hecho*); Germanic 'W' → Spanish 'Gu' (*William → Guillermo*). Arabic words often start with **al-** (*almohada, arroz, azúcar*).
@@ -77,7 +77,7 @@ Adjectives follow the noun and must match in gender and number.
 ### Demonstratives (This / That)
 *   **This/These (Has a 'T'):** *Este, Esta, Estos, Estas*. (e.g., *Este libro*).
 *   **That/Those (Drops the 'T'):** *Ese, Esa, Esos, Esas*. (e.g., *Esa mesa*).
-*   **Neuters (Abstract/Unknown concepts):** *Esto* (This thing), *Eso* (That thing). 
+*   **Neuters (Abstract/Unknown concepts):** *Esto* (This thing), *Eso* (That thing).
 
 ### The Neuter "Lo"
 *   **Lo + Adjective:** "The [adjective] thing." (*Lo importante es...* = The important thing is...).
@@ -100,7 +100,7 @@ Adjectives follow the noun and must match in gender and number.
 
 ### Pronoun Placement Logic
 1.  **Single Conjugated Verb:** Pronoun goes **before**. (*Lo quiero* = I want it).
-2.  **Verb + Infinitive/Gerund:** Goes **before** the conjugated verb OR **attached** to the end of the infinitive/gerund. 
+2.  **Verb + Infinitive/Gerund:** Goes **before** the conjugated verb OR **attached** to the end of the infinitive/gerund.
     *   *Lo quiero ver* OR *Quiero verlo*.
     *   *Lo estoy haciendo* OR *Estoy haciéndolo* (needs accent to preserve stress).
 3.  **Compound Tenses (Haber):** Must go **before** *haber*. Never attach to a participle. (*Lo he visto*).
@@ -116,7 +116,7 @@ Adjectives follow the noun and must match in gender and number.
 ### Specific Pronoun Mechanics
 *   **Prepositional Exceptions:** After prepositions (*para, por, de, en*), use prepositional pronouns.
     *   *Exception:* *Con* merges into **conmigo** (with me) and **contigo** (with you).
-*   **Body Parts & Clothing:** Spanish uses definite articles + indirect pronouns, not possessives. 
+*   **Body Parts & Clothing:** Spanish uses definite articles + indirect pronouns, not possessives.
     *   *Me duele la cabeza* (My head hurts / "The head hurts me").
     *   *Me pongo los zapatos* (I put on my shoes).
 *   **Personal "A":** Requires an 'a' before a specific human direct object. (*Veo a David* vs. *Veo el coche*).
@@ -210,7 +210,7 @@ Background descriptions, habitual past actions, states of being. ("I used to go,
 | **Vosotros** | habl**abais** | com**íais** | Hablabais, Comíais |
 | **Ellos/Uds.**| habl**aban** | com**ían** | Hablaban, Comían |
 
-*   **Only 3 Irregulars:** 
+*   **Only 3 Irregulars:**
     *   *Ser:* era, eras, era, éramos, erais, eran.
     *   *Ir:* iba, ibas, iba, íbamos, ibais, iban.
     *   *Ver:* veía, veías, veía, veíamos, veíais, veían.
@@ -315,7 +315,7 @@ Spanish replaces "to get/become" with specific verbs:
 *   **Quedarse + Adj:** Resulting state, often a loss. (*Se quedó ciego* = He went blind).
 
 ### Essential Structures
-*   **Obligation:** 
+*   **Obligation:**
     *   *Tener que* + inf (Personal requirement: *Tengo que ir* = I have to go).
     *   *Deber* + inf (Moral obligation / "Must": *Debo estudiar*).
     *   *Hace falta* + inf/subjunctive (Impersonal need: *Hace falta agua*).
@@ -379,20 +379,20 @@ In Spain, directness is polite. Do not overuse conditionals (*Me gustaría...*).
 *   **Vale:** Okay / Understood / Sounds good. (Essential Spanish anchor word).
 
 ### Erasmus Survival Vocabulary
-*   **University:** 
+*   **University:**
     *   *La asignatura* (Course module)
     *   *Matricularse* (To enroll)
     *   *Aprobar* (To pass an exam) / *Suspender* (To fail)
     *   *Los apuntes* (Class notes)
     *   *El horario* (Schedule)
     *   *El TFG* (Bachelor's Thesis)
-*   **Housing/Logistics:** 
+*   **Housing/Logistics:**
     *   *Piso compartido* (Shared apartment)
     *   *Casero/a* (Landlord)
     *   *La fianza* (Security deposit)
     *   *Gastos incluidos* (Bills included)
     *   *Empadronamiento* (City hall registration)
-*   **Slang:** 
+*   **Slang:**
     *   *Tío / Tía* (Dude / Mate / Girl - universal informal address)
     *   *Guay* (Cool. *¡Qué guay!*)
     *   *Molar* (To like a lot / be cool. Works like *Gustar*. *Me mola Madrid* = I love Madrid)

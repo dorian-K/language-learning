@@ -17,10 +17,10 @@ The transcript has been generated automatically from audio, so there may be some
 ### LINGUISTIC FORMATTING STRICT RULES
 You must format the base words and translations according to standard dictionary rules:
 - **Spanish Stem (`spanish_stem`):** Use the infinitive for verbs (e.g., "hablar"). Use the singular form for nouns (e.g., "el gato"), with article. Use the singular masculine form for adjectives (e.g., "rápido").
-- **English Translations (`translation_en`):** 
+- **English Translations (`translation_en`):**
   - Verbs MUST start with "to " (e.g., "to speak").
   - Nouns should be just the word without an article (e.g., "cat").
-- **German Translations (`translation_de`):** 
+- **German Translations (`translation_de`):**
   - Verbs MUST be in the infinitive form (e.g., "sprechen").
   - Nouns MUST include the definite article "der", "die", or "das" (e.g., "la gata" -> "die Katze").
   - Adjectives should be uninflected (e.g., "schnell").
@@ -33,7 +33,7 @@ For each word, evaluate its complexity according to the CEFR scale (A1, A2, B1, 
 - `mandatory_level`: The highest language level by which a student MUST fully know and use this word to be considered proficient at that level.
 
 ### OUTPUT FORMAT
-You must output ONLY valid JSON. Do not include any conversational filler, markdown formatting (like ```json), or explanations before or after the JSON. 
+You must output ONLY valid JSON. Do not include any conversational filler, markdown formatting (like ```json), or explanations before or after the JSON.
 
 Use this exact JSON schema:[
   {

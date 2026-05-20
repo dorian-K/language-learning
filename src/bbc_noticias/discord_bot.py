@@ -12,8 +12,8 @@ import os
 import discord
 from discord import app_commands
 
-from .queue import enqueue_story
 from .adapters.discord import DiscordAdapter
+from .queue import enqueue_story
 from .story_service import get_story_payload
 
 BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN", "")

@@ -73,7 +73,7 @@
 
 ## Regional Considerations
 *   **Spain (Peninsular):** Uses *vosotros* (plural informal) and /θ/ (th-sound) for 'z' and 'c' (before e/i).
-*   **Latin America:** Uses *ustedes* for all plural "you." Uses /s/ for 'z' and 'c'. 
+*   **Latin America:** Uses *ustedes* for all plural "you." Uses /s/ for 'z' and 'c'.
 *   **Register:** Use *Usted* (formal) as a default in Spain; note that *Usted* may be rarer or differently nuanced in parts of the Americas (e.g., Argentina).
 
 # Language Transfer: Spanish Linguistic Foundations (Tracks XI - XX)
@@ -172,7 +172,7 @@ Direct Object Pronouns (DOPs: *lo, la, los, las*) and Indirect Object Pronouns (
 
 ## 3. The "To Be" Distinction: *Ser* vs. *Estar*
 Choice is based on **Classification**, not duration.
-*   **Ser (Characteristics):** Essential traits, identity, professions, inherent nature. 
+*   **Ser (Characteristics):** Essential traits, identity, professions, inherent nature.
 *   **Estar (States):** Transitory conditions, mental/physical states, and **location**.
 
 ### Conjugation of *Estar* (Irregular Stress)
@@ -184,9 +184,9 @@ Choice is based on **Classification**, not duration.
 
 ## 4. Key Verbs and Modality
 *   **Dar (to give):** Irregular "Yo": *Doy, das, da, damos, dan*.
-*   **Quedar(se):** *Quedar* = to remain/be located; *Quedarse* (reflexive) = to stay/remain in a place. 
-*   **Llamarse:** Use reflexive to provide names (*¿Cómo te llamas?*). 
-*   **Obligation:** 
+*   **Quedar(se):** *Quedar* = to remain/be located; *Quedarse* (reflexive) = to stay/remain in a place.
+*   **Llamarse:** Use reflexive to provide names (*¿Cómo te llamas?*).
+*   **Obligation:**
     *   *Tener que* + infinitive: General necessity/obligation.
     *   *Deber* + infinitive: Moral obligation or "must" (logical probability).
 
@@ -208,10 +208,10 @@ Choice is based on **Classification**, not duration.
 *   **Why vs. Because:** *¿Por qué?* (question) vs. *Porque* (answer).
 *   **Future Context:** The present tense indicates future when paired with a time marker (*Te lo doy mañana*).
 *   **Phonetics:** "QU" always sounds like "K" (the 'u' is silent); "H" is always silent.
-*   **Regionalisms:** 
+*   **Regionalisms:**
     *   **Car:** *Coche* (ES), *Carro* (LatAm), *Auto* (Universal).
     *   **You all:** *Vosotros* (ES informal) vs. *Ustedes* (Universal plural in LatAm).
-    
+
 # Language Transfer: Spanish Foundation Summary XXXI–XL
 
 This summary consolidates the linguistic patterns, verb structures, and syntax logic explored in tracks 31 through 40.
@@ -349,8 +349,8 @@ Participle: *-ar* $\rightarrow$ **-ado** | *-er/-ir* $\rightarrow$ **-ido**. The
 
 ## 5. Morphology & Logic
 *   **Cognate Shift:** English *-tion* $\rightarrow$ Spanish *-ción* (always feminine). Corresponding verbs usually end in *-ar*.
-*   **Verb Derivations:** 
-    *   English "-tain" $\rightarrow$ *-tener* (*Contener, Obtener, Mantener*). 
+*   **Verb Derivations:**
+    *   English "-tain" $\rightarrow$ *-tener* (*Contener, Obtener, Mantener*).
     *   English "-pose" $\rightarrow$ *-poner* (*Componer, Suponer, Imponer*).
 *   **The *Que* Rule:** Unlike English, the conjunction *que* (that) is **mandatory** to connect clauses (e.g., *Digo que...*).
 *   **Regional Variation:** *Vosotros* (+ *-éis/-íais*) is informal plural in Spain. *Ustedes* (+ *-án/-ían*) is used for all plural "you" in Latin America.
@@ -386,10 +386,10 @@ Participle: *-ar* $\rightarrow$ **-ado** | *-er/-ir* $\rightarrow$ **-ido**. The
 *   **Impersonal "Se":** *Se* + 3rd person singular denotes a passive/generalized action (*Se envió ayer* - It was sent yesterday).
 
 ## 4. Nuanced Vocabulary & Comparisons
-*   **Por vs. Para:** 
+*   **Por vs. Para:**
     *   *Por*: Exchange, cause (because of), communication/presence.
     *   *Para*: Destination, recipient, purpose (in order to).
-*   **Neuter "Lo":** 
+*   **Neuter "Lo":**
     *   *Lo* + Adj: Expresses "The [adjective] thing" (*lo interesante*).
     *   *Lo de*: Expresses "The thing about/business of" (*lo de la fiesta*).
 *   **Comparisons:** *Más/menos que* + **subject pronoun** (*Comió más que yo* - not "me").
@@ -591,7 +591,7 @@ These verbs end in **-go** in the *yo* present indicative and follow specific pa
     *   *Example:* "Dime cuando llegues" (Tell me when you arrive).
 
 ## 5. Agreement, Articles, and Apocope
-*   **Demasiado:** 
+*   **Demasiado:**
     *   With Nouns: Agrees (*Demasiadas personas*).
     *   With Adjectives: Invariable adverb (*Demasiado caras*).
 *   **The "El" Exception:** Feminine nouns starting with a **stressed 'a'** (2 syllables) take **el**.
@@ -615,7 +615,7 @@ This supplementary guide bridges the gap between Language Transfer’s universal
 ## 1. Peninsular Grammar Logics
 
 ### The "Vosotros" Imperative (Informal Plural Commands)
-In Spain, you will hear *vosotros* commands daily from professors, friends, and signs. 
+In Spain, you will hear *vosotros* commands daily from professors, friends, and signs.
 
 | Form | Rule | Examples |
 | :--- | :--- | :--- |

@@ -92,9 +92,9 @@ def load_apkg_to_genanki(apkg_path):
     # --- Reconstruct genanki.Note objects ---
     # We join notes with cards to find out which deck the note belongs to.
     cursor.execute("""
-        SELECT n.id, n.guid, n.mid, n.flds, n.tags, c.did 
-        FROM notes n 
-        JOIN cards c ON n.id = c.nid 
+        SELECT n.id, n.guid, n.mid, n.flds, n.tags, c.did
+        FROM notes n
+        JOIN cards c ON n.id = c.nid
         GROUP BY n.id
     """)
 
