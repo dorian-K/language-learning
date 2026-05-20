@@ -131,16 +131,16 @@ class TestFetchStories(TestCase):
         ).encode()
 
     def test_parses_single_story(self):
-        """All 4 active feeds return the same test item → 4 merged stories."""
+        """All 3 active feeds return the same test item → 3 merged stories."""
         xml = self._rss_xml("Mi primera historia", "https://bbc.com/123")
         with _make_mock_get_call(xml):
             stories = fetch_stories(max_age_hours=24)
-        self.assertEqual(len(stories), 4)  # one per feed (4 active feeds)
+        self.assertEqual(len(stories), 3)  # one per feed (3 active feeds)
         self.assertEqual(stories[0]["title"], "Mi primera historia")
         self.assertEqual(stories[0]["link"], "https://bbc.com/123")
 
     def test_parses_multiple_stories(self):
-        """Each feed has 2 items → 8 merged stories total (4 active feeds)."""
+        """Each feed has 2 items → 6 merged stories total (3 active feeds)."""
         recent_date = (datetime.now(UTC) - timedelta(hours=2)).strftime("%a, %d %b %Y %H:%M:%S GMT")
         xml = (
             f'<?xml version="1.0" encoding="UTF-8"?>'
@@ -151,7 +151,7 @@ class TestFetchStories(TestCase):
         ).encode()
         with _make_mock_get_call(xml):
             stories = fetch_stories(max_age_hours=24)
-        self.assertEqual(len(stories), 8)  # 2 per feed × 4 feeds
+        self.assertEqual(len(stories), 6)  # 2 per feed × 3 feeds
         self.assertEqual(stories[0]["title"], "Story A")
         self.assertEqual(stories[1]["title"], "Story B")
 
@@ -164,14 +164,14 @@ class TestFetchStories(TestCase):
         self.assertEqual(len(stories), 0)
 
     def test_includes_stories_within_max_age_hours(self):
-        """Recent story is kept in all feeds → 4 stories (one per feed, 4 active feeds)."""
+        """Recent story is kept in all feeds → 3 stories (one per feed, 3 active feeds)."""
         recent_date = (datetime.now(UTC) - timedelta(hours=12)).strftime(
             "%a, %d %b %Y %H:%M:%S GMT"
         )
         xml = self._rss_xml("Historia reciente", "https://bbc.com/reciente", recent_date)
         with _make_mock_get_call(xml):
             stories = fetch_stories(max_age_hours=24)
-        self.assertEqual(len(stories), 4)
+        self.assertEqual(len(stories), 3)
 
     def test_skips_items_without_title(self):
         """Items with empty titles are skipped → 0 stories."""

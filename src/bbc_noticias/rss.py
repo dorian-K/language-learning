@@ -22,7 +22,7 @@ FEEDS = [
     "https://www.bbc.co.uk/mundo/ultimas_noticias/index.xml",
     "https://www.bbc.co.uk/mundo/temas/internacional/index.xml",
     # El Mundo (Spain, international coverage)
-    "https://www.elmundo.es/rss/portada.xml",
+    # "https://www.elmundo.es/rss/portada.xml",  # TODO: scraper doesn't work for elmundo — see issue #32
 ]
 
 
