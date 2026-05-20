@@ -75,10 +75,22 @@ class DiscordAdapter(PlatformAdapter):
         if not isinstance(thread, discord.Thread):
             raise RuntimeError(f"Channel {thread_id} is not a thread")
 
-        content = (
-            f"> {payload.summary}\n\n{payload.bullets}\n\n🔗 [Artículo original]({payload.url})"
-        )
-        await thread.send(content)  # type: ignore[reportAttributeAccessIssue]
+        # Build content, splitting at Discord's 2000-char limit
+        text = payload.text
+        chunk_size = 1900
+        if len(text) <= chunk_size:
+            content = (
+                f"> {payload.summary}\n\n{payload.bullets}\n\n---\n\n{text}\n\n---\n\n🔗 [Artículo original]({payload.url})"
+            )
+            await thread.send(content)  # type: ignore[reportAttributeAccessIssue]
+        else:
+            # Send summary + bullets first, then the article in chunks
+            await thread.send(f"> {payload.summary}\n\n{payload.bullets}")  # type: ignore[reportAttributeAccessIssue]
+            for i in range(0, len(text), chunk_size):
+                chunk = text[i:i + chunk_size]
+                await thread.send(chunk)  # type: ignore[reportAttributeAccessIssue]
+            await thread.send(f"\n🔗 [Artículo original]({payload.url})")  # type: ignore[reportAttributeAccessIssue]
+
         logger.info("[discord] Posted article to thread %s", thread_id)
 
     async def add_reaction(self, channel_msg_id: str, channel_override=None) -> None:
