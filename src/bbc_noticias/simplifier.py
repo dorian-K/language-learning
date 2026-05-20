@@ -45,7 +45,7 @@ def simplify(article_dict: dict, llm: LLM) -> dict:
         ),
         user=prompt,
         temperature=0.6,
-        max_tokens=16000,
+        max_tokens=min(20000, max(2000, 1000 + len(article_text))),
     )
 
     # Strip markdown code fences if present
