@@ -6,6 +6,7 @@ Refactored to use PlatformAdapter pattern:
 - StoryService for platform-agnostic fetch/select/simplify pipeline
 """
 
+import dataclasses
 import logging
 import os
 
@@ -26,12 +27,15 @@ logger = logging.getLogger(__name__)
 
 class BotClient(discord.Client):
     def __init__(self):
-        super().__init__(intents=discord.Intents.default())
+        intents = discord.Intents.default()
+        intents.message_content = True  # needed for button handlers that read message content
+        super().__init__(intents=intents)
         self.adapter = DiscordAdapter(client=self)
         self._tree = app_commands.CommandTree(self)
 
     async def setup_hook(self) -> None:
         await self._tree.sync()
+        self.add_view(StoryView())  # register persistent button view
 
 
 client = BotClient()
@@ -73,12 +77,7 @@ class StoryButton(discord.ui.Button):
             await interaction.followup.send("✅ ¡Historia enviada!", ephemeral=True)
         except Exception as e:
             logger.error("[bot] send_story failed, re-enqueueing: %s", e)
-            enqueue_story(
-                {
-                    "title": payload.topic_title,
-                    "link": payload.url,
-                }
-            )
+            enqueue_story(dataclasses.asdict(payload))
             await interaction.followup.send(f"❌ Error al enviar: {e}", ephemeral=True)
 
 

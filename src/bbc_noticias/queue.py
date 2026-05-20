@@ -32,18 +32,42 @@ def _save(data: dict) -> None:
 
 
 def enqueue_story(story: dict) -> None:
-    """Add a story to the pending queue (called by cron after webhook send)."""
+    """Add a story to the pending queue (called by cron after webhook send).
+
+    Accepts a StoryPayload dataclass (passed as dict via dataclasses.asdict),
+    or a raw RSS story dict. Normalises field names so pop_story always returns
+    a StoryPayload-compatible dict.
+    """
+    import dataclasses
+
     data = _load()
-    if is_already_queued(story.get("link") or story.get("url") or ""):
+
+    # Accept both dict and dataclass instances
+    if dataclasses.is_dataclass(story):
+        story = dataclasses.asdict(story)
+
+    url = story.get("url") or story.get("link") or ""
+    title = story.get("headline") or story.get("title") or ""
+
+    if is_already_queued(url):
         return
-    data["pending"].append(
-        {
-            **story,
-            "queued_at": datetime.now(UTC).isoformat(),
-        }
-    )
+
+    entry = {
+        "title": title,
+        "link": url,
+        "headline": story.get("headline", title),
+        "summary": story.get("summary", ""),
+        "bullets": story.get("bullets", ""),
+        "text": story.get("text", ""),
+        "url": url,
+        "topic_title": story.get("topic_title", title),
+        "source": story.get("source", ""),
+        "pub_date": story.get("pub_date", ""),
+        "queued_at": datetime.now(UTC).isoformat(),
+    }
+    data["pending"].append(entry)
     _save(data)
-    logger.info("[queue] Enqueued story: %s", story.get("title", "?"))
+    logger.info("[queue] Enqueued story: %s", title)
 
 
 def pop_story() -> dict | None:

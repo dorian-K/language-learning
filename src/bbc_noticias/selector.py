@@ -20,9 +20,9 @@ def select_best_story(stories: list[dict], llm: LLM) -> dict | None:
         return None
 
     story_lines = []
-    for i, s in enumerate(stories, 1):
+    for idx, s in enumerate(stories, 1):
         story_lines.append(
-            f"[{i}] {s['title']}\n"
+            f"[{idx}] {s['title']}\n"
             f"    Fuente: {s['source']} | Fecha: {s['pub_date']}\n"
             f"    {s['description'][:300]}"
         )

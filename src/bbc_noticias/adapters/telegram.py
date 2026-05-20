@@ -85,23 +85,27 @@ async def _button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
     user_id = query.from_user.id  # type: ignore[reportOptionalMemberAccess]
 
-    try:
-        from ..story_service import get_story_payload  # lazy to avoid circular import
-
-        payload = await get_story_payload()
-    except Exception as e:
-        logger.error("[telegram] button callback failed: %s", e)
-        await query.edit_message_text(  # type: ignore[reportOptionalMemberAccess]
-            text="❌ Error al obtener historia. Inténtalo de nuevo.",
-        )
-        return
-
-    if not payload:
+    # Pop the story that was queued when cron sent the channel message.
+    # This delivers the SAME story the user clicked on, not a fresh selection.
+    from ..queue import pop_story
+    raw = pop_story()
+    if not raw:
         await context.bot.send_message(
             chat_id=user_id,
-            text="❌ No se encontró ninguna historia. Prueba otra vez.",
+            text="❌ No hay ninguna historia en cola. Espera a la próxima publicación o usa /historia.",
         )
         return
+
+    # Build a StoryPayload from the queued dict for _send_story_to.
+    from ..adapters.base import StoryPayload
+    payload = StoryPayload(
+        headline=raw.get("headline", raw.get("title", "")),
+        summary=raw.get("summary", ""),
+        bullets=raw.get("bullets", ""),
+        text=raw.get("text", ""),
+        url=raw.get("url", raw.get("link", "")),
+        topic_title=raw.get("topic_title", raw.get("title", "")),
+    )
 
     # Send to the user's DM
     await _send_story_to(user_id, payload, context.bot)
@@ -242,7 +246,7 @@ class TelegramAdapter(PlatformAdapter):
         Returns the thread_id (topic_id in Telegram terms).
         """
         if not self._app or not self.channel_chat_id:
-            return "dm"
+            return None
 
         try:
             # Telegram forum topic ID (for forum channels, custom_id is the topic_id)
@@ -256,25 +260,33 @@ class TelegramAdapter(PlatformAdapter):
             return str(msg.message_id)
         except Exception as e:
             logger.warning("[telegram] create_thread failed: %s", e)
-            return "dm"
+            return None
 
     async def post_thread(self, thread_id: str, payload: StoryPayload) -> None:
-        """Post the story content to the specified thread/DM."""
-        chat_id = int(thread_id) if thread_id.isdigit() else None
-        if chat_id and self._app and self._app.bot:
+        """Post the story content to the specified thread/DM.
+
+        If thread_id is 'dm' (fallback from create_thread for non-forum channels),
+        the story is sent to the channel as a regular message instead.
+        """
+        if thread_id == "dm" or not thread_id or not thread_id.isdigit():
+            # Non-forum channel: send directly to the channel as regular messages
+            if self._app and self._app.bot:
+                await _send_story_to(int(self.channel_chat_id), payload, self._app.bot)
+            return
+        chat_id = int(thread_id)
+        if self._app and self._app.bot:
             await _send_story_to(chat_id, payload, self._app.bot)
-        else:
-            # DM fallback
-            pass
 
     async def add_reaction(self, channel_msg_id: str) -> None:
-        """React to the channel message with ✅."""
-        if not self._app or not self.channel_chat_id:
+        """React to the channel message with ✅ via Telegram reaction API."""
+        if not self._app or not self.channel_chat_id or not channel_msg_id.isdigit():
             return
         try:
-            await self._app.bot.send_message(
+            await self._app.bot.set_message_reaction(
                 chat_id=int(self.channel_chat_id),
-                text="✅",
+                message_id=int(channel_msg_id),
+                reaction=[{"type": "emoji", "emoji": "✅"}],
+                is_big=True,
             )
         except Exception as e:
             logger.warning("[telegram] add_reaction failed: %s", e)

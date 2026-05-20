@@ -11,6 +11,7 @@ For cron: schedule this script to run once a day via your system's cron,
 docker-compose cron, or OpenClaw's built-in cron.
 """
 
+import dataclasses
 import logging
 
 from dotenv import load_dotenv
@@ -119,7 +120,7 @@ def run() -> bool:
         try:
             from src.bbc_noticias.queue import enqueue_story
 
-            enqueue_story(best)
+            enqueue_story(dataclasses.asdict(payload))
         except Exception as e:
             log.warning("  Queue: ❌ (%s)", e)
 

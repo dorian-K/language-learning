@@ -47,4 +47,8 @@ def simplify(article_dict: dict, llm: LLM) -> dict:
 
     # Strip markdown code fences if present
     raw = re.sub(r"```(?:json)?\s*", "", raw).strip()
-    return json.loads(raw)
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError as e:
+        logger.error("[simplifier] LLM output was not valid JSON: %s\nRaw: %s", e, raw[:500])
+        raise

@@ -58,4 +58,8 @@ class LLM:
         text = self.complete(system, user, temperature)
         # Strip markdown code fences if present
         text = re.sub(r"```(?:json)?\s*", "", text).strip()
-        return json.loads(text)
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError as e:
+            logger.error("[llm] LLM output was not valid JSON: %s\nRaw: %s", e, text[:500])
+            raise
