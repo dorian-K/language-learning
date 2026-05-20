@@ -5,9 +5,12 @@ and adds English translations for difficult words.
 """
 
 import json
+import logging
 import re
 
 from .llm import LLM
+
+logger = logging.getLogger(__name__)
 from .prompts import DORIAN_PROFILE, SIMPLIFY_PROMPT, VOCAB_HARD_LIST
 
 

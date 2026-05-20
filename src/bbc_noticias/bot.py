@@ -93,6 +93,7 @@ def run() -> bool:
         headline=headline,
         summary=result["summary"],
         bullets=result["bullets"],
+        text=result["text"],
         url=best["link"],
         topic_title=best["title"],
     )

@@ -239,7 +239,7 @@ class TelegramAdapter(PlatformAdapter):
         )
         return str(msg.message_id)
 
-    async def create_thread(self, payload: StoryPayload, channel_msg_id: str) -> str:
+    async def create_thread(self, payload: StoryPayload, channel_msg_id: str) -> str | None:
         """
         Telegram forum channels support topics/threads.
         Creates a new thread in the forum channel.
@@ -263,15 +263,8 @@ class TelegramAdapter(PlatformAdapter):
             return None
 
     async def post_thread(self, thread_id: str, payload: StoryPayload) -> None:
-        """Post the story content to the specified thread/DM.
-
-        If thread_id is 'dm' (fallback from create_thread for non-forum channels),
-        the story is sent to the channel as a regular message instead.
-        """
-        if thread_id == "dm" or not thread_id or not thread_id.isdigit():
-            # Non-forum channel: send directly to the channel as regular messages
-            if self._app and self._app.bot:
-                await _send_story_to(int(self.channel_chat_id), payload, self._app.bot)
+        """Post the story content to the specified thread/DM."""
+        if not thread_id or not thread_id.isdigit():
             return
         chat_id = int(thread_id)
         if self._app and self._app.bot:

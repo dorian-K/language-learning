@@ -86,6 +86,7 @@ async def simplify_story(story: dict) -> StoryPayload:
         headline=headline,
         summary=simplified["summary"],
         bullets=simplified["bullets"],
+        text=simplified["text"],
         url=story["link"],
         topic_title=story["title"],
     )

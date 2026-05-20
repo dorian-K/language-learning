@@ -17,6 +17,7 @@ class StoryPayload:
     headline: str  # Formatted: emoji + bold title
     summary: str  # B1-adapted article summary
     bullets: str  # B1 bullet points
+    text: str  # Full simplified article text
     url: str  # Original article URL
     topic_title: str  # Thread/topic subject line
 
