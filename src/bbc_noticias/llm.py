@@ -29,7 +29,9 @@ class LLM:
         self.client = OpenAI(
             api_key=OPENROUTER_API_KEY,
             base_url=OPENROUTER_BASE,
-            http_client=httpx.Client(timeout=httpx.Timeout(120.0)),
+            http_client=httpx.Client(
+                timeout=httpx.Timeout(180.0, connect=10.0),
+            ),
         )
         self.model = OPENROUTER_MODEL
 
@@ -45,6 +47,7 @@ class LLM:
             ],
             temperature=temperature,
             max_tokens=max_tokens,
+            timeout=httpx.Timeout(120.0),
         )
         content = response.choices[0].message.content
         if content is None:
