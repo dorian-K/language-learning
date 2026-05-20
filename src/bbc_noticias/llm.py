@@ -6,6 +6,7 @@ Uses openrouter/auto (or configured model) via the OpenAI SDK.
 import logging
 import os
 
+import httpx
 from dotenv import load_dotenv
 from openai import OpenAI
 
@@ -16,8 +17,6 @@ load_dotenv()
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "openrouter/auto")
 OPENROUTER_BASE = "https://openrouter.ai/api/v1"
-
-REQUEST_TIMEOUT = 120  # seconds — prevents indefinite blocking of event loop
 
 
 class LLM:
@@ -30,6 +29,7 @@ class LLM:
         self.client = OpenAI(
             api_key=OPENROUTER_API_KEY,
             base_url=OPENROUTER_BASE,
+            http_client=httpx.Client(timeout=httpx.Timeout(120.0)),
         )
         self.model = OPENROUTER_MODEL
 
@@ -45,7 +45,6 @@ class LLM:
             ],
             temperature=temperature,
             max_tokens=max_tokens,
-            timeout=REQUEST_TIMEOUT,
         )
         content = response.choices[0].message.content
         if content is None:
