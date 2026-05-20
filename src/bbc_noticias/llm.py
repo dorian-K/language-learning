@@ -45,6 +45,10 @@ class LLM:
             max_tokens=max_tokens,
         )
         content = response.choices[0].message.content
+        if content is None:
+            refusal = getattr(response.choices[0].message, "refusal", None)
+            logger.error("[llm] LLM returned None content. Refusal: %s", refusal)
+            raise TypeError(f"LLM returned None (refusal: {refusal})")
         if not isinstance(content, str):
             logger.error("[llm] LLM returned non-string type: %s", type(content))
             raise TypeError(f"LLM returned {type(content).__name__}, expected str")
