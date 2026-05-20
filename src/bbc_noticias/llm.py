@@ -48,7 +48,7 @@ class LLM:
             temperature=temperature,
             max_tokens=max_tokens,
             timeout=httpx.Timeout(120.0),
-            extra_body={"thinking_level": "low"},
+            extra_body={"reasoning": {"max_tokens": max_tokens // 5}},
         )
         content = response.choices[0].message.content
         if content is None:
