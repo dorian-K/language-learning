@@ -6,7 +6,7 @@ is most relevant for Dorian.
 import logging
 
 from .llm import LLM
-from .prompts import STORY_SELECTION_PROMPT, DORIAN_PROFILE
+from .prompts import DORIAN_PROFILE, STORY_SELECTION_PROMPT
 
 logger = logging.getLogger(__name__)
 
@@ -31,9 +31,7 @@ def select_best_story(stories: list[dict], llm: LLM) -> dict | None:
 
     logger.debug("Story list:\n%s", story_list)
 
-    prompt = STORY_SELECTION_PROMPT.format(
-        profile=DORIAN_PROFILE, story_list=story_list
-    )
+    prompt = STORY_SELECTION_PROMPT.format(profile=DORIAN_PROFILE, story_list=story_list)
     selected_title = llm.complete(
         system="You are a helpful news curation assistant.",
         user=prompt,

@@ -10,21 +10,17 @@ Environment variables:
   TELEGRAM_CHANNEL_ID — channel ID (numeric, e.g. -1001234567890)
 """
 
-import asyncio
 import logging
-import os
-from uuid import uuid4
 
 from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
     Application,
-    CommandHandler,
     CallbackQueryHandler,
+    CommandHandler,
     ContextTypes,
 )
 
 from .base import PlatformAdapter, StoryPayload
-
 
 logger = logging.getLogger(__name__)
 
@@ -35,12 +31,7 @@ _pending: dict[int, dict] = {}
 
 def _build_story_text(payload: StoryPayload) -> str:
     """Format a story as a readable Telegram message."""
-    return (
-        f"📰 *{payload.headline}*\n\n"
-        f"{payload.summary}\n\n"
-        f"{payload.bullets}\n\n"
-        f"🔗 {payload.url}"
-    )
+    return f"📰 *{payload.headline}*\n\n{payload.summary}\n\n{payload.bullets}\n\n🔗 {payload.url}"
 
 
 async def _send_story_to(chat_id: int, payload: StoryPayload, bot: Bot) -> None:
@@ -55,6 +46,7 @@ async def _send_story_to(chat_id: int, payload: StoryPayload, bot: Bot) -> None:
 
 
 # ── Telegram-specific handlers (not part of PlatformAdapter) ─────────────────
+
 
 async def _historia_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /historia — send a story to the user's DM (or current chat)."""
@@ -95,6 +87,7 @@ async def _button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
     try:
         from ..story_service import get_story_payload  # lazy to avoid circular import
+
         payload = await get_story_payload()
     except Exception as e:
         logger.error("[telegram] button callback failed: %s", e)
@@ -139,6 +132,7 @@ async def _start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 # ── TelegramAdapter ─────────────────────────────────────────────────────────
 
+
 class TelegramAdapter(PlatformAdapter):
     """
     Telegram-specific posting via python-telegram-bot (v22+).
@@ -169,11 +163,7 @@ class TelegramAdapter(PlatformAdapter):
             logger.warning("[telegram] TELEGRAM_BOT_TOKEN not set — Telegram disabled")
             return
 
-        self._app = (
-            Application.builder()
-            .token(self.bot_token)
-            .build()
-        )
+        self._app = Application.builder().token(self.bot_token).build()
 
         # Register handlers
         self._app.add_handler(CommandHandler("historia", _historia_command))
@@ -210,9 +200,7 @@ class TelegramAdapter(PlatformAdapter):
                 parse_mode="Markdown",
                 reply_markup=markup,
             )
-            logger.info(
-                "[telegram] Channel anchor posted to %s", self.channel_chat_id
-            )
+            logger.info("[telegram] Channel anchor posted to %s", self.channel_chat_id)
         except Exception as e:
             logger.warning("[telegram] Could not post channel anchor: %s", e)
 

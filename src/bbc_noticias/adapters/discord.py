@@ -4,11 +4,10 @@ Discord adapter — implements PlatformAdapter for Discord.
 
 import logging
 import os
+
 import discord
-from discord import app_commands
 
 from .base import PlatformAdapter, StoryPayload
-
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +39,9 @@ class DiscordAdapter(PlatformAdapter):
             raise RuntimeError(f"Channel {STORIES_CHANNEL_ID} not found or not a TextChannel")
 
         msg = await channel.send(payload.headline)
-        logger.info("[discord] Posted headline to channel %s: %s", STORIES_CHANNEL_ID, payload.headline[:60])
+        logger.info(
+            "[discord] Posted headline to channel %s: %s", STORIES_CHANNEL_ID, payload.headline[:60]
+        )
         return str(msg.id)
 
     async def create_thread(self, payload: StoryPayload, channel_msg_id: str) -> str:
@@ -55,7 +56,9 @@ class DiscordAdapter(PlatformAdapter):
         try:
             message = await channel.fetch_message(int(channel_msg_id))
         except discord.NotFound:
-            raise RuntimeError(f"Message {channel_msg_id} not found in channel {STORIES_CHANNEL_ID}")
+            raise RuntimeError(
+                f"Message {channel_msg_id} not found in channel {STORIES_CHANNEL_ID}"
+            )
 
         thread_name = _make_thread_name(payload.topic_title)
         thread = await message.create_thread(
@@ -72,9 +75,7 @@ class DiscordAdapter(PlatformAdapter):
             raise RuntimeError(f"Thread {thread_id} not found")
 
         content = (
-            f"> {payload.summary}\n\n"
-            f"{payload.bullets}\n\n"
-            f"🔗 [Artículo original]({payload.url})"
+            f"> {payload.summary}\n\n{payload.bullets}\n\n🔗 [Artículo original]({payload.url})"
         )
         await thread.send(content)
         logger.info("[discord] Posted article to thread %s", thread_id)
@@ -107,8 +108,10 @@ class DiscordAdapter(PlatformAdapter):
 
     def story_is_sent(self, url: str) -> bool:
         from .. import queue_service
+
         return queue_service.queue_service.is_sent(url)
 
     def mark_sent(self, url: str) -> None:
         from .. import queue_service
+
         queue_service.queue_service.mark_sent(url)

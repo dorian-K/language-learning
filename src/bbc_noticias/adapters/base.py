@@ -7,18 +7,18 @@ import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
-
 logger = logging.getLogger(__name__)
 
 
 @dataclass
 class StoryPayload:
     """Platform-agnostic story content ready to be posted."""
-    headline: str        # Formatted: emoji + bold title
-    summary: str         # B1-adapted article summary
-    bullets: str         # B1 bullet points
-    url: str             # Original article URL
-    topic_title: str     # Thread/topic subject line
+
+    headline: str  # Formatted: emoji + bold title
+    summary: str  # B1-adapted article summary
+    bullets: str  # B1 bullet points
+    url: str  # Original article URL
+    topic_title: str  # Thread/topic subject line
 
 
 class PlatformAdapter(ABC):
@@ -81,9 +81,11 @@ class PlatformAdapter(ABC):
     def story_is_sent(self, url: str) -> bool:
         """Check if story URL is already tracked as sent."""
         from ..queue_service import queue_service
+
         return queue_service.is_sent(url)
 
     def mark_sent(self, url: str) -> None:
         """Record a URL as sent to prevent re-sending."""
         from ..queue_service import queue_service
+
         queue_service.mark_sent(url)

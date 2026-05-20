@@ -1,7 +1,8 @@
-import genanki
-import random
-import os
 import json
+import os
+import random
+
+import genanki
 
 # Define Paths
 if False:
@@ -87,7 +88,6 @@ hr {
 """
 
 
-
 # 2. Define the Universal Model for our dual-direction setup
 MODEL_ID = random.Random("Symmetrical_ES_EN_DE_Vocab").randrange(
     1 << 30, 1 << 31
@@ -160,7 +160,7 @@ def process_json_files():
         filepath = os.path.join(INPUT_FOLDER, filename)
 
         try:
-            with open(filepath, "r", encoding="utf-8") as f:
+            with open(filepath, encoding="utf-8") as f:
                 data = json.load(f)
 
             # Iterate through the two objects in the array
@@ -171,26 +171,38 @@ def process_json_files():
                     # handle duplicate
                     # all data types in both should be the same
                     for field in entries[key]:
-                        assert type(entries[key][field]) is type(card.get(field)), f"Data type mismatch for field '{field}' in file {filename}"
-                    
+                        assert type(entries[key][field]) is type(card.get(field)), (
+                            f"Data type mismatch for field '{field}' in file {filename}"
+                        )
+
                     # arrays: append unique items. but keep current order stable
                     # sentence strings: add newline and append if different
                     for field in entries[key]:
-                        if isinstance(entries[key][field], list) and isinstance(card.get(field), list):
+                        if isinstance(entries[key][field], list) and isinstance(
+                            card.get(field), list
+                        ):
                             existing_set = set(entries[key][field])
-                            new_items = [item for item in card.get(field, []) if item not in existing_set]
+                            new_items = [
+                                item for item in card.get(field, []) if item not in existing_set
+                            ]
                             entries[key][field].extend(new_items)
-                        elif isinstance(entries[key][field], str) and isinstance(card.get(field), str):
+                        elif isinstance(entries[key][field], str) and isinstance(
+                            card.get(field), str
+                        ):
                             if entries[key][field].lower() == card.get(field).lower():
                                 continue
                             elif "sentence" in field or "notes" in field:
                                 entries[key][field] += "\n" + card.get(field)
                             elif "level" in field:
-                                pass # ignore...
+                                pass  # ignore...
                             else:
-                                print(f"Warning: Conflicting non-sentence field '{field}' for key '{key}' in file {filename}. Keeping original value.")
+                                print(
+                                    f"Warning: Conflicting non-sentence field '{field}' for key '{key}' in file {filename}. Keeping original value."
+                                )
                         else:
-                            raise ValueError(f"Unsupported data type for field '{field}' in file {filename}. Expected both to be lists or both to be strings.")
+                            raise ValueError(
+                                f"Unsupported data type for field '{field}' in file {filename}. Expected both to be lists or both to be strings."
+                            )
                 else:
                     entries[key] = card
 
@@ -227,12 +239,14 @@ def process_json_files():
                 f"<span class='lang-label'>DE:</span> \"{card.get('example_sentence_de', '')}\""
             )
 
-            back_word = f"<span class='lang-label'>ES:</span> {format_list(card.get('target_es', []))}"
-            back_sentence = f"<span class='lang-label'>ES:</span> {card.get('example_sentence_es', '')}"
-        else:
-            print(
-                f"Warning: Unrecognized direction '{direction}',skipping card."
+            back_word = (
+                f"<span class='lang-label'>ES:</span> {format_list(card.get('target_es', []))}"
             )
+            back_sentence = (
+                f"<span class='lang-label'>ES:</span> {card.get('example_sentence_es', '')}"
+            )
+        else:
+            print(f"Warning: Unrecognized direction '{direction}',skipping card.")
             continue  # Skip if unrecognized format
 
         # Generate a stable GUID from the filename and the card index
@@ -251,7 +265,7 @@ def process_json_files():
     )
     # 4. Export the decks
     print("\n--- Generating Anki Packages ---")
-    #for level, deck in decks_by_level.items():
+    # for level, deck in decks_by_level.items():
     output_file = os.path.join(OUTPUT_FOLDER, f"{os.path.basename(INPUT_FOLDER)}.apkg")
     genanki.Package(list(decks_by_level.values())).write_to_file(output_file)
     print(f"Successfully created: {output_file}")

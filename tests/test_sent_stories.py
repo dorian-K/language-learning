@@ -1,15 +1,17 @@
 """
 Unit tests for sent_stories.py — tracks which article URLs have been sent.
 """
-import pytest
+
 import tempfile
-import os
 from pathlib import Path
+
+import pytest
+
 from src.bbc_noticias.sent_stories import (
-    get_sent_urls,
-    mark_sent,
-    is_sent,
     filter_unsent,
+    get_sent_urls,
+    is_sent,
+    mark_sent,
 )
 
 # Use a temp file for isolation
@@ -22,6 +24,7 @@ def clean_temp_file():
         _TEMP_FILE.unlink()
     # Patch TRACKER_FILE to use our temp path
     import src.bbc_noticias.sent_stories as tracker
+
     original = tracker.TRACKER_FILE
     tracker.TRACKER_FILE = _TEMP_FILE
     yield

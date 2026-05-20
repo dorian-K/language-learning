@@ -8,11 +8,9 @@ Provides:
 """
 
 import logging
-from typing import Optional
 
 from . import queue as _queue
 from . import sent_stories as _sent_stories
-
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +29,7 @@ class QueueService:
         """Add a story to the pending queue (called by cron after webhook send)."""
         _queue.enqueue_story(story)
 
-    def pop_queued(self) -> Optional[dict]:
+    def pop_queued(self) -> dict | None:
         """Pop the oldest pending story (called by bot when user clicks)."""
         return _queue.pop_story()
 

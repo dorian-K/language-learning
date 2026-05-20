@@ -1,14 +1,9 @@
-import os
 import glob
-import json
-import re
+import os
 
-import time
-import random
-
-from openai import OpenAI
-from dotenv import load_dotenv
 import better_exchook
+from dotenv import load_dotenv
+from openai import OpenAI
 
 better_exchook.setup_all()
 
@@ -61,15 +56,13 @@ def process_single_transcript(filepath, previous_cheatsheet, extraction_rules):
 
     print(f"Processing {filename}...")
 
-    with open(filepath, "r", encoding="utf-8") as f:
+    with open(filepath, encoding="utf-8") as f:
         transcript = f.read()
 
     if previous_cheatsheet is None:
-        previous_cheatsheet_content = (
-            "<no previous cheatsheet - this is the first transcript>"
-        )
+        previous_cheatsheet_content = "<no previous cheatsheet - this is the first transcript>"
     else:
-        with open(previous_cheatsheet, "r", encoding="utf-8") as f:
+        with open(previous_cheatsheet, encoding="utf-8") as f:
             previous_cheatsheet_content = f.read()
 
     # Build the Prompt using the "Sandwich Method" discussed earlier
@@ -129,10 +122,8 @@ def compact_cheatsheets(files, out_filepath):
     # here we take 10 cheatsheets, and have llms compact them into 1, following the same rules as before. This is to create a "master cheatsheet" that summarizes all the previous ones, which can be used as the "previous_cheatsheet" context for future transcripts, allowing the model to have a more comprehensive understanding of all past content without having to read through every single previous cheatsheet in detail.
     combined_cheatsheet_content = ""
     for f in files:
-        with open(f, "r", encoding="utf-8") as in_f:
-            combined_cheatsheet_content += (
-                f"<{os.path.basename(f)}>\n" + in_f.read() + "\n</>\n\n"
-            )
+        with open(f, encoding="utf-8") as in_f:
+            combined_cheatsheet_content += f"<{os.path.basename(f)}>\n" + in_f.read() + "\n</>\n\n"
 
     combined_cheatsheet_content += """
 Now, based on the combined content of these 10 cheatsheets, create a single, compact cheatsheet that summarizes all the key information. Follow the same formatting and structure rules as before, but focus on condensing the information while retaining all important details. The output should be in markdown format. Do not add any explanations or extra text, just the markdown content of the compacted cheatsheet.
@@ -174,7 +165,7 @@ def process_transcripts():
             f"Could not find {PROMPT_FILE}. Please create it and paste the prompt rules inside."
         )
 
-    with open(PROMPT_FILE, "r", encoding="utf-8") as f:
+    with open(PROMPT_FILE, encoding="utf-8") as f:
         extraction_rules = f.read()
 
     # Find all .txt transcriptions
@@ -200,9 +191,7 @@ def process_transcripts():
     # now we compact
     for i in range(9):
         print(f"Compacting cheatsheets batch {i + 1}...")
-        batch_files = list(sorted(glob.glob(os.path.join(OUTPUT_FOLDER, "*.md"))))[
-            i * 10 : (i + 1) * 10
-        ]
+        batch_files = sorted(glob.glob(os.path.join(OUTPUT_FOLDER, "*.md")))[i * 10 : (i + 1) * 10]
         if not batch_files:
             print(f"No more cheatsheets to compact in batch {i + 1}.")
             break

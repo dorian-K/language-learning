@@ -4,7 +4,6 @@ Sent stories tracker — records article URLs that have been sent to webhook.
 File format: one URL per line, in data/sent_stories.txt
 """
 
-import os
 from pathlib import Path
 
 TRACKER_FILE = Path(__file__).parent.parent.parent / "data" / "sent_stories.txt"
@@ -18,7 +17,7 @@ def get_sent_urls() -> set[str]:
     """Return all URLs that have been sent already."""
     if not TRACKER_FILE.exists():
         return set()
-    with open(TRACKER_FILE, "r", encoding="utf-8") as f:
+    with open(TRACKER_FILE, encoding="utf-8") as f:
         return {line.strip() for line in f if line.strip()}
 
 

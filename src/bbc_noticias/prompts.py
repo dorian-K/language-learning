@@ -59,7 +59,13 @@ Rules:
 - Preserve all paragraph structure
 - Keep the Spanish text as-is where it's already appropriate
 - If a sentence is already simple, leave it unchanged
-- Produce the COMPLETE simplified text — do not truncate, abbreviate, or omit any part of the article
+
+OUTPUT FORMAT: Return a valid JSON object with exactly this structure (no markdown, no preamble):
+{{{{
+  "summary": "2-3 sentence summary of the article in simplified Spanish",
+  "bullets": "3-5 bullet points of key facts, each on its own line starting with •",
+  "text": "the full simplified article text"
+}}}}
 
 Spanish article:
 ---

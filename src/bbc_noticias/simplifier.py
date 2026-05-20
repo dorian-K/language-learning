@@ -4,21 +4,29 @@ Calls OpenRouter with SIMPLIFY_PROMPT: simplifies sentence structures
 and adds English translations for difficult words.
 """
 
+import json
+import re
+
 from .llm import LLM
-from .prompts import SIMPLIFY_PROMPT, DORIAN_PROFILE, VOCAB_HARD_LIST
+from .prompts import DORIAN_PROFILE, SIMPLIFY_PROMPT, VOCAB_HARD_LIST
 
 
-def simplify_article(article_text: str, llm: LLM) -> str:
+def simplify(article_dict: dict, llm: LLM) -> dict:
     """
-    Given the full Spanish article text, call OpenRouter to produce
-    a B1-adapted version with:
+    Given an article dict with 'text', 'url', and 'title' keys, call OpenRouter
+    to produce a B1-adapted version with:
       - simpler sentence structures
-      - English translations in (parentheses) for difficult words
+      - English translations in ||(text)|| format for difficult words
+      - a summary and bullet points
+
+    Returns a dict with keys: summary, bullets, text
     """
+    article_text = article_dict.get("text", "")
+
     # Truncate if too long (OpenRouter has context limits and high costs)
-    MAX_CHARS = 20000
-    if len(article_text) > MAX_CHARS:
-        article_text = article_text[:MAX_CHARS] + "\n[... texto truncado ...]"
+    max_chars = 20000
+    if len(article_text) > max_chars:
+        article_text = article_text[:max_chars] + "\n[... texto truncado ...]"
 
     prompt = SIMPLIFY_PROMPT.format(
         profile=DORIAN_PROFILE,
@@ -26,14 +34,17 @@ def simplify_article(article_text: str, llm: LLM) -> str:
         article_text=article_text,
     )
 
-    simplified = llm.complete(
+    raw = llm.complete(
         system=(
-            "You are a Spanish language tutor. Always respond with ONLY the "
-            "simplified Spanish text. Never add explanations, preambles, "
-            "or anything outside the article text itself."
+            "You are a Spanish language tutor. Always respond with ONLY valid JSON "
+            "matching the required schema. Never add explanations, preambles, "
+            "or anything outside the JSON object."
         ),
         user=prompt,
         temperature=0.6,
-        max_tokens=MAX_CHARS * 2,
+        max_tokens=8192,
     )
-    return simplified
+
+    # Strip markdown code fences if present
+    raw = re.sub(r"```(?:json)?\s*", "", raw).strip()
+    return json.loads(raw)

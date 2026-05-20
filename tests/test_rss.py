@@ -1,10 +1,10 @@
 """
 Unit tests for rss.py — no API keys needed, tests RSS parsing logic.
 """
-import pytest
-from datetime import datetime, timezone, timedelta
-from unittest.mock import patch, MagicMock
-from src.bbc_noticias.rss import parse_rss_datetime, fetch_stories
+
+from unittest.mock import MagicMock
+
+from src.bbc_noticias.rss import parse_rss_datetime
 
 
 class TestParseRssDatetime:
@@ -35,5 +35,3 @@ def _mock_response(content: bytes, status_code: int = 200) -> MagicMock:
     m.text = content.decode("utf-8")
     m.raise_for_status = MagicMock()
     return m
-
-

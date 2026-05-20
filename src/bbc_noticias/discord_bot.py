@@ -6,7 +6,6 @@ Refactored to use PlatformAdapter pattern:
 - StoryService for platform-agnostic fetch/select/simplify pipeline
 """
 
-import asyncio
 import logging
 import os
 
@@ -14,9 +13,8 @@ import discord
 from discord import app_commands
 
 from . import queue_service
-from .story_service import get_story_payload
 from .adapters.discord import DiscordAdapter
-
+from .story_service import get_story_payload
 
 BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN", "")
 STORIES_CHANNEL_ID = int(os.getenv("DISCORD_STORIES_CHANNEL_ID", "0"))
@@ -40,6 +38,7 @@ client = BotClient()
 
 
 # ── Discord UI components ───────────────────────────────────────────────────
+
 
 class StoryButton(discord.ui.Button):
     def __init__(self):
@@ -74,10 +73,12 @@ class StoryButton(discord.ui.Button):
             await interaction.followup.send("✅ ¡Historia enviada!", ephemeral=True)
         except Exception as e:
             logger.error("[bot] send_story failed, re-enqueueing: %s", e)
-            queue_service.enqueue_story({
-                "title": payload.headline,
-                "link": payload.url,
-            })
+            queue_service.enqueue_story(
+                {
+                    "title": payload.headline,
+                    "link": payload.url,
+                }
+            )
             await interaction.followup.send(f"❌ Error al enviar: {e}", ephemeral=True)
 
 
@@ -88,6 +89,7 @@ class StoryView(discord.ui.View):
 
 
 # ── Slash command ───────────────────────────────────────────────────────────
+
 
 @client._tree.command(
     name="historia",
@@ -100,9 +102,7 @@ async def historia(interaction: discord.Interaction, hours: int = 48):
         payload = await get_story_payload(max_age_hours=hours)
     except Exception as e:
         logger.error("[historia] get_story_payload failed: %s", e)
-        await interaction.followup.send(
-            "❌ Error interno. Revisa los logs.", ephemeral=True
-        )
+        await interaction.followup.send("❌ Error interno. Revisa los logs.", ephemeral=True)
         return
 
     if not payload:
@@ -122,6 +122,7 @@ async def historia(interaction: discord.Interaction, hours: int = 48):
 
 
 # ── Entry point ────────────────────────────────────────────────────────────
+
 
 def main():
     client.run(BOT_TOKEN, log_handler=None)

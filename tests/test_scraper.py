@@ -1,9 +1,15 @@
 """
 Unit tests for scraper.py — no API keys needed, tests HTML extraction and cleaning.
 """
-import pytest
-from unittest.mock import patch, MagicMock
-from src.bbc_noticias.scraper import fetch_article, _clean_html, _extract_article_body, _fallback_extract
+
+from unittest.mock import MagicMock, patch
+
+from src.bbc_noticias.scraper import (
+    _clean_html,
+    _extract_article_body,
+    _fallback_extract,
+    fetch_article,
+)
 
 
 class TestCleanHtml:
@@ -100,9 +106,7 @@ class TestFetchArticle:
     @patch("src.bbc_noticias.scraper.requests.get")
     def test_fetch_article_http_error_returns_none(self, mock_get):
         mock_get.return_value.status_code = 404
-        mock_get.return_value.raise_for_status = MagicMock(
-            side_effect=Exception("not found")
-        )
+        mock_get.return_value.raise_for_status = MagicMock(side_effect=Exception("not found"))
 
         result = fetch_article("https://www.bbc.com/not-found")
         assert result is None
@@ -110,6 +114,7 @@ class TestFetchArticle:
     @patch("src.bbc_noticias.scraper.requests.get")
     def test_fetch_article_timeout_returns_none(self, mock_get):
         import requests
+
         mock_get.side_effect = requests.exceptions.Timeout("timed out")
 
         result = fetch_article("https://www.bbc.com/slow")

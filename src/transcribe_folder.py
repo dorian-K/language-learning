@@ -1,11 +1,11 @@
-import os
+import gc
 import glob
 import json
-import whisperx
-import torch
-import gc
-from dotenv import load_dotenv
+import os
 
+import torch
+import whisperx
+from dotenv import load_dotenv
 from whisperx.diarize import DiarizationPipeline
 
 # Load environment variables from .env file
@@ -15,8 +15,10 @@ load_dotenv()
 # CONFIGURATION
 # ==========================================
 INPUT_FOLDER = os.path.join(os.path.dirname(__file__), "../data/lt")  # Place your audio files here
-OUTPUT_FOLDER = os.path.join(os.path.dirname(__file__), "../transcriptions/lt")  # Transcriptions will be saved here
-HF_TOKEN = os.getenv("HF_TOKEN") # Safely loads from .env
+OUTPUT_FOLDER = os.path.join(
+    os.path.dirname(__file__), "../transcriptions/lt"
+)  # Transcriptions will be saved here
+HF_TOKEN = os.getenv("HF_TOKEN")  # Safely loads from .env
 
 if not HF_TOKEN:
     raise ValueError("HF_TOKEN is missing! Please add it to your .env file.")
@@ -24,8 +26,8 @@ if not HF_TOKEN:
 # ... (the rest of the script remains exactly the same)
 # RTX 5080 Optimization
 DEVICE = "cuda"
-COMPUTE_TYPE = "float16" # The 5080 handles float16 natively, saving VRAM and boosting speed
-BATCH_SIZE = 16          # You can likely push this to 32 on a 5080 if you want
+COMPUTE_TYPE = "float16"  # The 5080 handles float16 natively, saving VRAM and boosting speed
+BATCH_SIZE = 16  # You can likely push this to 32 on a 5080 if you want
 
 # This prompt tricks the AI into expecting both languages so it doesn't force translate
 INITIAL_PROMPT = "Okay, let's practice. Hola, ¿cómo estás? I am doing well, estoy bien."
@@ -35,15 +37,16 @@ AUDIO_EXTENSIONS = ("*.mp3", "*.wav", "*.m4a", "*.flac")
 
 # ==========================================
 
+
 def process_folder():
     # Create output directory if it doesn't exist
     os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
     # Gather all audio files
-    audio_files =[]
+    audio_files = []
     for ext in AUDIO_EXTENSIONS:
         audio_files.extend(glob.glob(os.path.join(INPUT_FOLDER, ext)))
-    
+
     if not audio_files:
         print(f"No audio files found in {INPUT_FOLDER}.")
         return
@@ -51,8 +54,10 @@ def process_folder():
     print(f"Found {len(audio_files)} files. Loading models into VRAM...")
 
     # 1. Load the Whisper model (large-v3 is best for code-switching/multilingual)
-    model = whisperx.load_model("large-v3", DEVICE, compute_type=COMPUTE_TYPE, use_auth_token=HF_TOKEN)
-    
+    model = whisperx.load_model(
+        "large-v3", DEVICE, compute_type=COMPUTE_TYPE, use_auth_token=HF_TOKEN
+    )
+
     # 2. Load the Diarization (Speaker ID) model
     diarize_model = DiarizationPipeline(token=HF_TOKEN, device=DEVICE)
 
@@ -75,16 +80,20 @@ def process_folder():
         print("1/4 Transcribing...")
         # Passing initial_prompt to help with the English/Spanish switching
         result = model.transcribe(audio, batch_size=BATCH_SIZE, language=None, print_progress=True)
-        
+
         # Free VRAM associated with transcription to make room for alignment
         detected_language = result["language"]
         print(f"Detected dominant language: {detected_language}")
 
         # Align timestamps (makes timestamps exact to the word)
         print("2/4 Aligning audio to words...")
-        model_a, metadata = whisperx.load_align_model(language_code=detected_language, device=DEVICE)
-        result = whisperx.align(result["segments"], model_a, metadata, audio, DEVICE, return_char_alignments=False)
-        
+        model_a, metadata = whisperx.load_align_model(
+            language_code=detected_language, device=DEVICE
+        )
+        result = whisperx.align(
+            result["segments"], model_a, metadata, audio, DEVICE, return_char_alignments=False
+        )
+
         # Unload alignment model to free VRAM
         del model_a
         gc.collect()
@@ -110,13 +119,14 @@ def process_folder():
                 start = round(segment["start"], 2)
                 end = round(segment["end"], 2)
                 text = segment["text"].strip()
-                
+
                 line = f"[{start}s - {end}s] {speaker}: {text}\n"
                 f.write(line)
 
         print(f" Finished {filename}. Saved to {OUTPUT_FOLDER}")
 
     print("\n All files processed successfully!")
+
 
 if __name__ == "__main__":
     process_folder()

@@ -16,7 +16,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "."))
-from extract_from_anki import load_apkg_to_genanki, note_to_llm_str, b64_encode
+from extract_from_anki import load_apkg_to_genanki, note_to_llm_str
 
 
 def export_deck(apkg_path: str, output_folder: str = "anki/snapshot") -> int:
@@ -29,10 +29,7 @@ def export_deck(apkg_path: str, output_folder: str = "anki/snapshot") -> int:
         for note in deck.notes:
             # Parse all fields (same as note_to_llm_str but keep field names)
             model = note.model
-            fields = {
-                field["name"]: value
-                for field, value in zip(model.fields, note.fields)
-            }
+            fields = {field["name"]: value for field, value in zip(model.fields, note.fields)}
 
             snapshot = {
                 "guid": note.guid,

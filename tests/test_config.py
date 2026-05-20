@@ -1,9 +1,10 @@
 """
 Unit tests for config.py — no API keys needed, tests environment loading.
 """
-import pytest
+
 import os
 from unittest.mock import patch
+
 from src.bbc_noticias.config import Config, load
 
 
@@ -61,8 +62,8 @@ class TestConfigValidate:
 
 
 class TestLoad:
-        with patch.dict(os.environ, {}, clear=True):
-            cfg = load()
-            # Will have issues since no API key is set, but should still load
-            assert cfg.openrouter_model == "openrouter/auto"
-            assert cfg.max_age_hours == 24
+    with patch.dict(os.environ, {}, clear=True):
+        cfg = load()
+        # Will have issues since no API key is set, but should still load
+        assert cfg.openrouter_model == "openrouter/auto"
+        assert cfg.max_age_hours == 24

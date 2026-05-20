@@ -3,6 +3,7 @@ conftest.py — runs before all other test modules.
 Pre-mocks the `requests` and `dotenv` modules so rss.py / scraper.py / config.py
 can be imported and tested without those packages being installed.
 """
+
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock

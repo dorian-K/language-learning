@@ -12,11 +12,10 @@ import asyncio
 import logging
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-from .story_service import fetch_and_pick_story, simplify_story, get_story_payload
 from .adapters.base import StoryPayload
-
+from .story_service import get_story_payload
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -24,12 +23,7 @@ logger = logging.getLogger(__name__)
 
 def _build_story_text(payload: StoryPayload) -> str:
     """Format a story as readable plain text (for Telegram)."""
-    return (
-        f"📰 *{payload.headline}*\n\n"
-        f"{payload.summary}\n\n"
-        f"{payload.bullets}\n\n"
-        f"🔗 {payload.url}"
-    )
+    return f"📰 *{payload.headline}*\n\n{payload.summary}\n\n{payload.bullets}\n\n🔗 {payload.url}"
 
 
 async def run() -> bool:
@@ -37,7 +31,7 @@ async def run() -> bool:
     Main entry point for the cron job.
     Returns True if a story was successfully sent to any platform, False otherwise.
     """
-    logger.info("[cron] Starting BBC cron job at %s", datetime.now(timezone.utc))
+    logger.info("[cron] Starting BBC cron job at %s", datetime.now(UTC))
 
     # Full pipeline: fetch → select → fetch article → simplify → format
     try:
@@ -76,6 +70,7 @@ async def _send_discord(payload: StoryPayload) -> bool:
 
     try:
         import httpx  # lazy
+
         category_emoji = "📰"
         text = (
             f"{category_emoji} *Nueva historia de BBC Mundo*\n\n"
@@ -109,7 +104,9 @@ async def _send_telegram(payload: StoryPayload) -> bool | None:
     # Prefer channel if set, otherwise use DM chat_id
     target = channel_id or chat_id
     if not target:
-        logger.warning("[cron] TELEGRAM_BOT_TOKEN set but no TELEGRAM_CHAT_ID or TELEGRAM_CHANNEL_ID")
+        logger.warning(
+            "[cron] TELEGRAM_BOT_TOKEN set but no TELEGRAM_CHAT_ID or TELEGRAM_CHANNEL_ID"
+        )
         return None
 
     try:
@@ -137,11 +134,11 @@ if __name__ == "__main__":
 
 # ── bot.py backward-compatibility shim ─────────────────────────────────────────
 
+
 def send_article(title: str, original_url: str, simplified_text: str, pub_date: str) -> dict:
     """
-    Sync wrapper for backward compatibility with bot.py.
-    bot.py uses this to post the story via Discord webhook.
-    Telegram is handled asynchronously in run() and not via this function.
+    Sync wrapper for sending via Discord webhook.
+    Uses _build_story_text to format the message properly.
     Returns {"discord": bool, "telegram": None}.
     """
     logger.info("[send_article] Posting: %s", title)
@@ -151,7 +148,9 @@ def send_article(title: str, original_url: str, simplified_text: str, pub_date: 
     if webhook_url:
         try:
             import httpx  # lazy
-            payload = {"content": f"**{title}**\n{simplified_text[:1800]}\n\n🔗 {original_url}"}
+
+            # simplified_text is already a formatted string from _build_story_text
+            payload = {"content": simplified_text[:2000]}
             resp = httpx.post(webhook_url, json=payload, timeout=10.0)
             resp.raise_for_status()
             result["discord"] = True
@@ -159,5 +158,7 @@ def send_article(title: str, original_url: str, simplified_text: str, pub_date: 
         except Exception as e:
             logger.warning("  Discord: ❌ (%s)", e)
 
-    logger.info("[send_article] Done — discord=%s telegram=%s", result["discord"], result["telegram"])
+    logger.info(
+        "[send_article] Done — discord=%s telegram=%s", result["discord"], result["telegram"]
+    )
     return result

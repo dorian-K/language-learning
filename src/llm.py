@@ -1,8 +1,8 @@
-from openai import OpenAI
-from dotenv import load_dotenv
 import os
-import json
 import re
+
+from dotenv import load_dotenv
+from openai import OpenAI
 
 load_dotenv()
 API_KEY = os.getenv("DEEPSEEK_API_KEY")

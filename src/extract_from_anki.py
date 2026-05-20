@@ -1,14 +1,15 @@
-import sqlite3
-import json
-import zipfile
-import os
-import tempfile
-import shutil
-import genanki
-import time
-import random
-from concurrent.futures import ThreadPoolExecutor, as_completed
 import base64
+import json
+import os
+import random
+import shutil
+import sqlite3
+import tempfile
+import time
+import zipfile
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+import genanki
 
 from llm import invoke_llm
 
@@ -126,7 +127,7 @@ def load_apkg_to_genanki(apkg_path):
     media_files = []
 
     if os.path.exists(media_json_path):
-        with open(media_json_path, "r", encoding="utf-8") as f:
+        with open(media_json_path, encoding="utf-8") as f:
             media_map = json.load(f)
 
         # Rename the integer files (e.g., '0', '1') back to their original extensions
@@ -199,13 +200,9 @@ def process_note(note_id, note_str, extraction_rules, output_filepath):
         # print(f"DeepSeek's reasoning process for {filename}:\n{reasoning_process}\n")
 
     except json.JSONDecodeError:
-        print(
-            f"JSON Error on {note_id}: The model output invalid JSON format. Check the raw text."
-        )
+        print(f"JSON Error on {note_id}: The model output invalid JSON format. Check the raw text.")
         # Saves the broken text so you can see what went wrong
-        with open(
-            output_filepath.replace(".json", "_ERROR.txt"), "w", encoding="utf-8"
-        ) as err_f:
+        with open(output_filepath.replace(".json", "_ERROR.txt"), "w", encoding="utf-8") as err_f:
             err_f.write(raw_output)
 
     except Exception as e:
@@ -219,9 +216,7 @@ def process_note(note_id, note_str, extraction_rules, output_filepath):
 if __name__ == "__main__":
     decks, media_files = load_apkg_to_genanki(INPUT)
 
-    print(
-        f"Extracted {len(decks)} decks and {len(media_files)} media files from {INPUT}"
-    )
+    print(f"Extracted {len(decks)} decks and {len(media_files)} media files from {INPUT}")
 
     os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
@@ -230,7 +225,7 @@ if __name__ == "__main__":
             f"Could not find {PROMPT_FILE}. Please create it and paste the prompt rules inside."
         )
 
-    with open(PROMPT_FILE, "r", encoding="utf-8") as f:
+    with open(PROMPT_FILE, encoding="utf-8") as f:
         extraction_rules = f.read()
 
     # Example: Convert notes to LLM input format
@@ -248,9 +243,7 @@ if __name__ == "__main__":
                     b64_encode(note.guid),
                     note_to_llm_str(note),
                     extraction_rules,
-                    output_filepath=os.path.join(
-                        OUTPUT_FOLDER, f"{b64_encode(note.guid)}.json"
-                    ),
+                    output_filepath=os.path.join(OUTPUT_FOLDER, f"{b64_encode(note.guid)}.json"),
                 ): note
                 for note in deck.notes
             }

@@ -6,9 +6,8 @@ Both containers mount the same volume and read/write this file.
 import json
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -38,20 +37,20 @@ def enqueue_story(story: dict) -> None:
     data["pending"].append(
         {
             **story,
-            "queued_at": datetime.now(timezone.utc).isoformat(),
+            "queued_at": datetime.now(UTC).isoformat(),
         }
     )
     _save(data)
     logger.info("[queue] Enqueued story: %s", story.get("title", "?"))
 
 
-def pop_story() -> Optional[dict]:
+def pop_story() -> dict | None:
     """Pop the oldest pending story (called by bot when user clicks button)."""
     data = _load()
     if not data["pending"]:
         return None
     story = data["pending"].pop(0)
-    data["sent"].append({**story, "dequeued_at": datetime.now(timezone.utc).isoformat()})
+    data["sent"].append({**story, "dequeued_at": datetime.now(UTC).isoformat()})
     _save(data)
     logger.info("[queue] Dequeued story: %s", story.get("title", "?"))
     return story

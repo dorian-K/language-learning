@@ -1,5 +1,5 @@
 """
-BBC Noticias Bot — main entrypoint.
+BBC Noticias Bot — main entrypoint (sync).
 
 Fetches BBC Mundo RSS → selects most relevant story for Dorian via OpenRouter →
 fetches & simplifies the article → sends to Discord and/or Telegram.
@@ -17,13 +17,14 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from src.bbc_noticias.rss import fetch_stories
-from src.bbc_noticias.scraper import fetch_article
-from src.bbc_noticias.selector import select_best_story
-from src.bbc_noticias.simplifier import simplify_article
-from src.bbc_noticias.notifier import send_article
-from src.bbc_noticias.sent_stories import filter_unsent
-from src.bbc_noticias.config import load
+from src.bbc_noticias.adapters.base import StoryPayload  # noqa: E402
+from src.bbc_noticias.config import load  # noqa: E402
+from src.bbc_noticias.notifier import _build_story_text, send_article  # noqa: E402
+from src.bbc_noticias.rss import fetch_stories  # noqa: E402
+from src.bbc_noticias.scraper import fetch_article  # noqa: E402
+from src.bbc_noticias.selector import select_best_story  # noqa: E402
+from src.bbc_noticias.sent_stories import filter_unsent  # noqa: E402
+from src.bbc_noticias.simplifier import simplify  # noqa: E402
 
 
 def run() -> bool:
@@ -73,33 +74,56 @@ def run() -> bool:
         return False
     log.info("  Fetched %d characters.", len(article_text))
 
-    simplified = simplify_article(article_text, llm)
-    log.info("  Simplified %d characters.", len(simplified))
+    article_dict = {
+        "title": best["title"],
+        "text": article_text,
+        "url": best["link"],
+    }
+    result = simplify(article_dict, llm)
+    log.info(
+        "  Simplified (summary=%d chars, bullets=%d chars)",
+        len(result["summary"]),
+        len(result["bullets"]),
+    )
+
+    emoji = "📰"
+    headline = f"{emoji} **{best['title']}**"
+    payload = StoryPayload(
+        headline=headline,
+        summary=result["summary"],
+        bullets=result["bullets"],
+        url=best["link"],
+        topic_title=best["title"],
+    )
 
     if cfg.dry_run:
         log.info("[dry-run] Would have sent — title: %s | link: %s", best["title"], best["link"])
-        log.debug("  Text preview (500 chars): %s...", simplified[:500])
+        log.debug("  Summary preview: %s...", result["summary"][:500])
         return True
 
     # 4. Notify
     log.info("[4/4] Sending article to channels...")
-    result = send_article(
-        title=best["title"],
-        original_url=best["link"],
-        simplified_text=simplified,
-        pub_date=best["pub_date"],
-    )
-    log.info("  Discord: %s | Telegram: %s", "✅" if result["discord"] else "❌", "✅" if result["telegram"] else "❌")
 
-    # Also enqueue for the Discord bot (shares queue via volume)
-    if result["discord"] or result["telegram"]:
+    # Discord — use _build_story_text for properly formatted message
+    discord_ok = False
+    if cfg.discord_webhook_url:
+        discord_ok = send_article(
+            title=best["title"],
+            original_url=best["link"],
+            simplified_text=_build_story_text(payload),
+        )["discord"]
+        log.info("  Discord: %s", "✅" if discord_ok else "❌")
+
+    # Mark as sent so button-handler bots don't re-send it
+    if discord_ok:
         try:
             from src.bbc_noticias.queue import enqueue_story
+
             enqueue_story(best)
         except Exception as e:
-            log.warning("  Queue: ❌ (%s) — notification was already sent, ignoring", e)
+            log.warning("  Queue: ❌ (%s)", e)
 
-    return True
+    return discord_ok
 
 
 if __name__ == "__main__":

@@ -10,8 +10,7 @@ BBC Mundo offers these RSS feeds:
 
 import logging
 import xml.etree.ElementTree as ET
-from datetime import datetime, timezone, timedelta
-from typing import Optional
+from datetime import UTC, datetime, timedelta
 
 import requests
 
@@ -27,7 +26,7 @@ FEEDS = [
 ]
 
 
-def parse_rss_datetime(date_str: str) -> Optional[datetime]:
+def parse_rss_datetime(date_str: str) -> datetime | None:
     """Parse RFC 822 / RFC 2822 date strings found in RSS <pubDate>."""
     if not date_str:
         return None
@@ -45,7 +44,7 @@ def fetch_stories(max_age_hours: int = 24) -> list[dict]:
     Fetch all RSS feeds and return stories published within max_age_hours.
     Each dict: {title, link, description, pub_date, source}
     """
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=max_age_hours)
+    cutoff = datetime.now(UTC) - timedelta(hours=max_age_hours)
     cutoff_timestamp = cutoff.timestamp()
     all_stories = []
 

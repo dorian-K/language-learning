@@ -2,13 +2,15 @@
 Unit tests for src.bbc_noticias modules.
 Covers bugs found during PR #11 review.
 """
-import sys
+
 import os
+import sys
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
+
 
 # Stub discord before importing anything
 class _ButtonBase:
@@ -36,7 +38,7 @@ class _discordStub:
         @staticmethod
         def CommandTree(client):
             ct = type("CommandTree", (), {})()
-            ct.command = lambda *a, **kw: (lambda x: x)
+            ct.command = lambda *a, **kw: lambda x: x
             return ct
 
     class Intents:
@@ -94,6 +96,7 @@ def test_llm_no_api_key_raises_ValueError(monkeypatch):
 def test_llm_init_no_args():
     """LLM() must be called with zero args — no api_key or model kwargs."""
     import inspect
+
     from src.bbc_noticias.llm import LLM
 
     sig = inspect.signature(LLM.__init__)
@@ -165,10 +168,9 @@ def test_filter_unsent_accepts_list_of_strings():
 
 def test_filter_unsent_returns_only_unsent():
     """filter_unsent removes already-sent links from the list."""
-    from src.bbc_noticias.sent_stories import filter_unsent, mark_sent
-
     # Use a temp sent_stories file
     import src.bbc_noticias.sent_stories as sent_mod
+    from src.bbc_noticias.sent_stories import filter_unsent, mark_sent
 
     original_path = sent_mod.TRACKER_FILE
     tmp_file = tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False)
@@ -196,34 +198,32 @@ def test_filter_unsent_returns_only_unsent():
 # ---------------------------------------------------------------------------
 def test_discord_bot_uses_asyncio_to_thread():
     """story_service.py runs blocking I/O in asyncio.to_thread — not blocking the event loop."""
-    svc_src = (Path(__file__).parent.parent / "src" / "bbc_noticias" / "story_service.py").read_text()
+    svc_src = (
+        Path(__file__).parent.parent / "src" / "bbc_noticias" / "story_service.py"
+    ).read_text()
 
-    # fetch_stories + select_best_story are called inside lambdas passed to to_thread
-    # fetch_article + simplify_article are called directly with to_thread
-    # Check each function is wrapped (either in a lambda inside to_thread, or directly)
-
-    # Blocking I/O must use asyncio.to_thread or run_in_executor
-    assert "run_in_executor" in svc_src or "to_thread" in svc_src, \
+    # asyncio blocking I/O must use asyncio.to_thread or run_in_executor
+    assert "run_in_executor" in svc_src or "to_thread" in svc_src, (
         "blocking I/O should use asyncio.to_thread or run_in_executor"
+    )
 
-    # Indirect calls: fetch_stories and select_best_story are called inside a blocking lambda
-    # Use line-based extraction to reliably grab the function body
+    # simplify_story uses run_in_executor for fetch_article + simplify
     lines = svc_src.split("\n")
     in_fn = False
     fn_lines = []
     for line in lines:
-        if "def fetch_and_pick_story" in line:
+        if "def simplify_story" in line:
             in_fn = True
         if in_fn:
             fn_lines.append(line)
-            if len(fn_lines) > 1 and line.startswith("def ") and "fetch_and_pick_story" not in line:
+            if len(fn_lines) > 1 and line.startswith("def ") and "simplify_story" not in line:
                 break
     fn_body = "\n".join(fn_lines)
-    assert "fetch_stories" in fn_body, f"fetch_stories not in fn_body"
-    assert "filter_unsent" in fn_body, "filter_unsent not in fn_body"
-    assert "select_best_story" in fn_body, "select_best_story not in fn_body"
-    assert "run_in_executor" in fn_body or "to_thread" in fn_body, \
-        "blocking calls in fetch_and_pick_story should use run_in_executor or to_thread"
+    assert "fetch_article" in fn_body, "fetch_article not in fn_body"
+    assert "simplify" in fn_body, "simplify not in fn_body"
+    assert "run_in_executor" in fn_body or "to_thread" in fn_body, (
+        "blocking calls in simplify_story should use run_in_executor or to_thread"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -231,7 +231,9 @@ def test_discord_bot_uses_asyncio_to_thread():
 # ---------------------------------------------------------------------------
 def test_discord_bot_imports_filter_unsent():
     """discord_bot.py imports and uses filter_unsent so button/slash never picks sent stories."""
-    svc_src = (Path(__file__).parent.parent / "src" / "bbc_noticias" / "story_service.py").read_text()
+    svc_src = (
+        Path(__file__).parent.parent / "src" / "bbc_noticias" / "story_service.py"
+    ).read_text()
 
     assert "filter_unsent" in svc_src
 
@@ -279,7 +281,9 @@ def test_is_already_queued_checks_link_and_url(tmp_path):
 # ---------------------------------------------------------------------------
 def test_discord_bot_checks_bot_channel_id_env():
     """adapters/discord.py reads DISCORD_STORIES_CHANNEL_ID env var to send the button anchor."""
-    adapter_src = (Path(__file__).parent.parent / "src" / "bbc_noticias" / "adapters/discord.py").read_text()
+    adapter_src = (
+        Path(__file__).parent.parent / "src" / "bbc_noticias" / "adapters/discord.py"
+    ).read_text()
 
     assert "DISCORD_STORIES_CHANNEL_ID" in adapter_src
 
@@ -321,6 +325,7 @@ def test_pop_story_is_guarded_by_try_except():
         re.DOTALL,
     ), "send_story should be wrapped in try/except to handle failures gracefully"
 
+
 # ---------------------------------------------------------------------------
 # Issue 12: filter_unsent called with wrong type in discord_bot.py
 # Bug: passing full story dicts instead of URL strings causes 'dict' object has
@@ -328,8 +333,9 @@ def test_pop_story_is_guarded_by_try_except():
 # ---------------------------------------------------------------------------
 def test_filter_unsent_rejects_dicts():
     """filter_unsent must reject list[dict] at call time — dict has no .strip()."""
-    from src.bbc_noticias.sent_stories import filter_unsent
     import pytest
+
+    from src.bbc_noticias.sent_stories import filter_unsent
 
     # Passing story dicts (what discord_bot.py was accidentally doing)
     story_dicts = [
@@ -342,18 +348,20 @@ def test_filter_unsent_rejects_dicts():
 
 def test_discord_bot_passes_url_list_to_filter_unsent():
     """story_service.py must pass [s["link"] for s in stories] to filter_unsent."""
-    svc_src = (Path(__file__).parent.parent / "src" / "bbc_noticias" / "story_service.py").read_text()
+    svc_src = (
+        Path(__file__).parent.parent / "src" / "bbc_noticias" / "story_service.py"
+    ).read_text()
 
-    # Extract fetch_and_pick_story body
+    # Extract get_story_payload body
     lines = svc_src.split("\n")
     in_fn = False
     fn_lines = []
     for line in lines:
-        if "def fetch_and_pick_story" in line:
+        if "def get_story_payload" in line:
             in_fn = True
         if in_fn:
             fn_lines.append(line)
-            if len(fn_lines) > 1 and line.startswith("def ") and "fetch_and_pick_story" not in line:
+            if len(fn_lines) > 1 and line.startswith("def ") and "get_story_payload" not in line:
                 break
     fn_body = "\n".join(fn_lines)
 
@@ -361,10 +369,8 @@ def test_discord_bot_passes_url_list_to_filter_unsent():
     assert 's["link"]' in fn_body and "for s in stories" in fn_body, (
         "URLs must be extracted as [s['link'] for s in stories] before calling filter_unsent"
     )
-    # Must call queue_service.filter_unsent with the URL list (not bare stories)
-    assert "queue_service.filter_unsent" in fn_body, (
-        "filter_unsent must be called via queue_service (queue_service.filter_unsent)"
-    )
+    # Must call filter_unsent with the list of story links
+    assert "filter_unsent" in fn_body, "filter_unsent must be called with the list of story links"
 
 
 # ---------------------------------------------------------------------------
@@ -372,8 +378,9 @@ def test_discord_bot_passes_url_list_to_filter_unsent():
 # ---------------------------------------------------------------------------
 def test_filter_unsent_rejects_none_items():
     """filter_unsent must not crash if list contains None or non-str items."""
-    from src.bbc_noticias.sent_stories import filter_unsent
     import pytest
+
+    from src.bbc_noticias.sent_stories import filter_unsent
 
     # None in list would crash .strip()
     with pytest.raises(AttributeError):

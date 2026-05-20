@@ -2,10 +2,12 @@
 OpenRouter LLM client — wraps OpenAI-compatible API for BBC Noticias bot.
 Uses openrouter/auto (or configured model) via the OpenAI SDK.
 """
+
 import logging
-from openai import OpenAI
-from dotenv import load_dotenv
 import os
+
+from dotenv import load_dotenv
+from openai import OpenAI
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +31,9 @@ class LLM:
         )
         self.model = OPENROUTER_MODEL
 
-    def complete(self, system: str, user: str, temperature: float = 0.7, max_tokens: int = 4000) -> str:
+    def complete(
+        self, system: str, user: str, temperature: float = 0.7, max_tokens: int = 4000
+    ) -> str:
         """Send a chat completion and return the text response."""
         response = self.client.chat.completions.create(
             model=self.model,
@@ -48,7 +52,9 @@ class LLM:
 
     def complete_json(self, system: str, user: str, temperature: float = 0.3) -> dict:
         """Same as complete() but parses the response as JSON."""
-        import json, re
+        import json
+        import re
+
         text = self.complete(system, user, temperature)
         # Strip markdown code fences if present
         text = re.sub(r"```(?:json)?\s*", "", text).strip()

@@ -2,8 +2,9 @@ import json
 import os
 from collections import Counter
 
-#INPUT = os.path.join(os.path.dirname(__file__), "../anki/Refold ES1K/")
+# INPUT = os.path.join(os.path.dirname(__file__), "../anki/Refold ES1K/")
 INPUT = os.path.join(os.path.dirname(__file__), "../vocab/lt")
+
 
 def calculate_level_statistics(directory_path):
     # Initialize counters for the levels
@@ -19,40 +20,40 @@ def calculate_level_statistics(directory_path):
 
     # Iterate over all JSON files in the given directory
     for filename in os.listdir(directory_path):
-        if filename.endswith('.json'):
+        if filename.endswith(".json"):
             filepath = os.path.join(directory_path, filename)
-            
+
             try:
-                with open(filepath, 'r', encoding='utf-8') as f:
+                with open(filepath, encoding="utf-8") as f:
                     data = json.load(f)
-                    
+
                     total_files += 1
-                    
+
                     # Based on the schema, data is a list of objects
                     if isinstance(data, list):
                         for card in data:
                             total_cards += 1
-                            
+
                             earliest = card.get("earliest_level")
                             mandatory = card.get("mandatory_level")
-                            
+
                             # Increment counts if the levels are present
                             if earliest:
                                 earliest_counts[earliest] += 1
                             if mandatory:
                                 mandatory_counts[mandatory] += 1
-                                #if mandatory == "C1":
+                                # if mandatory == "C1":
                                 #    print(json.dumps(card, indent=2, ensure_ascii=False))
                     else:
                         print(f"Warning: {filename} does not contain a JSON array.")
-                        
+
             except json.JSONDecodeError:
                 print(f"Error reading {filename}: Invalid JSON format. Skipping.")
             except Exception as e:
                 print(f"Error reading {filename}: {e}. Skipping.")
 
     # Standard CEFR levels for sorting the output
-    cefr_levels =['A1', 'A2', 'B1', 'B2', 'C1', 'C2']
+    cefr_levels = ["A1", "A2", "B1", "B2", "C1", "C2"]
 
     # Print the statistics
     print("========================================")
@@ -61,13 +62,13 @@ def calculate_level_statistics(directory_path):
     print(f"Total word pairs (files): {total_files}")
     print(f"Total individual cards:   {total_cards}")
     print("========================================\n")
-    
+
     print("Distribution by 'Earliest Level':")
     print("---------------------------------")
     for level in cefr_levels:
         count = earliest_counts.get(level, 0)
         print(f"  {level}: {count} cards")
-        
+
     print("\nDistribution by 'Mandatory Level':")
     print("----------------------------------")
     for level in cefr_levels:
@@ -87,6 +88,6 @@ def calculate_level_statistics(directory_path):
         for level, count in other_mandatory_levels.items():
             print(f"  {level}: {count} cards")
 
-if __name__ == "__main__":
 
+if __name__ == "__main__":
     calculate_level_statistics(INPUT)
