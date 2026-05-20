@@ -24,7 +24,7 @@ def _make_thread_name(title: str) -> str:
 class DiscordAdapter(PlatformAdapter):
     """Discord-specific posting logic."""
 
-    def __init__(self, client: discord.Client):
+    def __init__(self, client: discord.Client):  # type: ignore[reportAttributeAccessIssue]
         self.client = client
 
     # ── PlatformAdapter interface ─────────────────────────────────────────
@@ -35,7 +35,7 @@ class DiscordAdapter(PlatformAdapter):
         Returns the message ID.
         """
         channel = self.client.get_channel(STORIES_CHANNEL_ID)
-        if not isinstance(channel, discord.TextChannel):
+        if not isinstance(channel, discord.TextChannel):  # type: ignore[reportAttributeAccessIssue]
             raise RuntimeError(f"Channel {STORIES_CHANNEL_ID} not found or not a TextChannel")
 
         msg = await channel.send(payload.headline)
@@ -50,12 +50,12 @@ class DiscordAdapter(PlatformAdapter):
         Returns the thread ID.
         """
         channel = self.client.get_channel(STORIES_CHANNEL_ID)
-        if not isinstance(channel, discord.TextChannel):
+        if not isinstance(channel, discord.TextChannel):  # type: ignore[reportAttributeAccessIssue]
             raise RuntimeError(f"Channel {STORIES_CHANNEL_ID} not found or not a TextChannel")
 
         try:
             message = await channel.fetch_message(int(channel_msg_id))
-        except discord.NotFound:
+        except discord.NotFound:  # type: ignore[reportAttributeAccessIssue]
             raise RuntimeError(
                 f"Message {channel_msg_id} not found in channel {STORIES_CHANNEL_ID}"
             )
@@ -83,7 +83,7 @@ class DiscordAdapter(PlatformAdapter):
     async def add_reaction(self, channel_msg_id: str) -> None:
         """Add a checkmark reaction to the channel message."""
         channel = self.client.get_channel(STORIES_CHANNEL_ID)
-        if not isinstance(channel, discord.TextChannel):
+        if not isinstance(channel, discord.TextChannel):  # type: ignore[reportAttributeAccessIssue]
             return
         try:
             message = await channel.fetch_message(int(channel_msg_id))

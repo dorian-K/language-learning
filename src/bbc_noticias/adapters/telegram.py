@@ -52,7 +52,7 @@ async def _historia_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     """Handle /historia — send a story to the user's DM (or current chat)."""
     from ..story_service import get_story_payload  # lazy to avoid circular import
 
-    chat_id = update.effective_chat.id
+    chat_id = update.effective_chat.id  # type: ignore[reportOptionalMemberAccess]
 
     try:
         payload = await get_story_payload()
@@ -81,9 +81,9 @@ async def _button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     Sends the story to the user's DM (not to the channel).
     """
     query = update.callback_query
-    await query.answer()  # Acknowledge immediately
+    await query.answer()  # type: ignore[reportOptionalMemberAccess]  # Acknowledge immediately
 
-    user_id = query.from_user.id
+    user_id = query.from_user.id  # type: ignore[reportOptionalMemberAccess]
 
     try:
         from ..story_service import get_story_payload  # lazy to avoid circular import
@@ -91,7 +91,7 @@ async def _button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         payload = await get_story_payload()
     except Exception as e:
         logger.error("[telegram] button callback failed: %s", e)
-        await query.edit_message_text(
+        await query.edit_message_text(  # type: ignore[reportOptionalMemberAccess]
             text="❌ Error al obtener historia. Inténtalo de nuevo.",
         )
         return
@@ -112,7 +112,7 @@ async def _button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     )
 
     # Edit the original message to confirm
-    await query.edit_message_text(
+    await query.edit_message_text(  # type: ignore[reportOptionalMemberAccess]
         text="✅ ¡Historia enviada a tu DM! Revisa tus mensajes privados.",
     )
 
@@ -120,7 +120,7 @@ async def _button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 async def _start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /start — welcome the user and explain how to use the bot."""
     await context.bot.send_message(
-        chat_id=update.effective_chat.id,
+        chat_id=update.effective_chat.id,  # type: ignore[reportOptionalMemberAccess]
         text=(
             "👋 *BBC Mundo Bot*\n\n"
             "Usa /historia para recibir una historia nueva de BBC Mundo.\n"
@@ -180,7 +180,7 @@ class TelegramAdapter(PlatformAdapter):
             await self._post_channel_anchor()
 
         if self._app:
-            await self._app.run_polling(drop_pending_updates=True)
+            self._app.run_polling(drop_pending_updates=True)
         logger.info("[telegram] Bot started")
 
     async def _post_channel_anchor(self) -> None:
@@ -261,7 +261,7 @@ class TelegramAdapter(PlatformAdapter):
     async def post_thread(self, thread_id: str, payload: StoryPayload) -> None:
         """Post the story content to the specified thread/DM."""
         chat_id = int(thread_id) if thread_id.isdigit() else None
-        if chat_id:
+        if chat_id and self._app and self._app.bot:
             await _send_story_to(chat_id, payload, self._app.bot)
         else:
             # DM fallback
