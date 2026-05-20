@@ -69,7 +69,7 @@ class StoryButton(discord.ui.Button):
         try:
             payload = await get_story_payload()
         except Exception as e:
-            logger.error("[bot] get_story_payload failed (button): %s", e)
+            logger.error("[bot] get_story_payload failed (button): %s", e, exc_info=True)
             await interaction.followup.send(
                 "❌ No se encontró ninguna historia. Prueba otra vez.",
                 ephemeral=True,
@@ -87,7 +87,7 @@ class StoryButton(discord.ui.Button):
             await client.adapter.send_story(payload, interaction_channel=interaction.channel)
             await interaction.followup.send("✅ ¡Historia enviada!", ephemeral=True)
         except Exception as e:
-            logger.error("[bot] send_story failed, re-enqueueing: %s", e)
+            logger.error("[bot] send_story failed, re-enqueueing: %s", e, exc_info=True)
             enqueue_story(dataclasses.asdict(payload))
             await interaction.followup.send(f"❌ Error al enviar: {e}", ephemeral=True)
 
@@ -111,7 +111,7 @@ async def historia(interaction: discord.Interaction, hours: int = 48):
     try:
         payload = await get_story_payload(max_age_hours=hours)
     except Exception as e:
-        logger.error("[historia] get_story_payload failed: %s", e)
+        logger.error("[historia] get_story_payload failed: %s", e, exc_info=True)
         await interaction.followup.send("❌ Error interno. Revisa los logs.", ephemeral=True)
         return
 
@@ -125,7 +125,7 @@ async def historia(interaction: discord.Interaction, hours: int = 48):
         await client.adapter.send_story(payload, interaction_channel=interaction.channel)
         await interaction.followup.send("✅ ¡Historia publicada!", ephemeral=True)
     except Exception as e:
-        logger.error("[historia] send_story failed: %s", e)
+        logger.error("[historia] send_story failed: %s", e, exc_info=True)
         await interaction.followup.send(
             "❌ Error al publicar la historia. Revisa los logs.", ephemeral=True
         )

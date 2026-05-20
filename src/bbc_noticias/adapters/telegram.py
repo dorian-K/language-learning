@@ -57,7 +57,7 @@ async def _historia_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     try:
         payload = await get_story_payload()
     except Exception as e:
-        logger.error("[telegram] get_story_payload failed: %s", e)
+        logger.error("[telegram] get_story_payload failed: %s", e, exc_info=True)
         await context.bot.send_message(
             chat_id=chat_id,
             text="❌ Error al obtener historia. Inténtalo de nuevo.",

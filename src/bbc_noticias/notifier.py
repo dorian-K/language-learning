@@ -37,7 +37,7 @@ async def run() -> bool:
     try:
         payload = await get_story_payload(max_age_hours=3)
     except Exception as e:
-        logger.error("[cron] get_story_payload failed: %s", e)
+        logger.error("[cron] get_story_payload failed: %s", e, exc_info=True)
         return False
 
     if not payload:
