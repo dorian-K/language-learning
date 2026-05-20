@@ -60,17 +60,15 @@ Rules:
 - Keep the Spanish text as-is where it's already appropriate
 - If a sentence is already simple, leave it unchanged
 
-OUTPUT FORMAT: Return a valid JSON object with exactly this structure (no markdown, no preamble):
+OUTPUT FORMAT: Return a valid JSON object with exactly this structure (no markdown, no preamble, no extra text):
 {{{{
   "summary": "2-3 sentence summary of the article in simplified Spanish",
   "bullets": "3-5 bullet points of key facts, each on its own line starting with •",
   "text": "the full simplified article text"
-}}}}
+}}}}}
 
 Spanish article:
 ---
 {article_text}
 ---
-
-Respond with ONLY the simplified Spanish text (no preamble, no explanation).
 """.lstrip()
