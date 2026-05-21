@@ -46,7 +46,7 @@ def fetch_article(url: str, timeout: int = 15) -> str | None:
         return text if text else None
 
     except Exception as e:
-        logger.warning("[scraper] Failed to fetch %s: %s", url, e)
+        logger.warning("[scraper] Failed to fetch %s: %s", url, e, exc_info=True)
         return None
 
 
@@ -207,4 +207,4 @@ if __name__ == "__main__":
     if text:
         logger.info("[scraper] Smoke test succeeded for %s", url)
     else:
-        logger.warning("[scraper] Smoke test failed for %s", url)
+        logger.warning("[scraper] Smoke test failed for %s", url, exc_info=True)

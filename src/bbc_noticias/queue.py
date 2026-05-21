@@ -21,7 +21,7 @@ def _load() -> dict:
         with open(QUEUE_PATH) as f:
             return json.load(f)
     except Exception as e:
-        logger.warning("[queue] Failed to read queue: %s", e)
+        logger.warning("[queue] Failed to read queue: %s", e, exc_info=True)
         return {"pending": [], "sent": []}
 
 

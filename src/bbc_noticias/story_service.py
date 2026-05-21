@@ -27,7 +27,7 @@ def _call_simplify(article_dict: dict, llm: LLM) -> dict | None:
         return simplify(article_dict, llm)
     except TypeError as e:
         if "None" in str(e):
-            logger.warning("[simplifier] LLM returned None on simplify, will retry: %s", e)
+            logger.warning("[simplifier] LLM returned None on simplify, will retry: %s", e, exc_info=True)
             return None
         raise
 
@@ -69,7 +69,7 @@ async def _select_best_story(stories: list[dict], llm: LLM) -> dict | None:
 
     logger.warning(
         "[story_service] Could not match title '%s', falling back to first story.", selected_title
-    )
+    , exc_info=True)
     return stories[0]
 
 
@@ -97,7 +97,7 @@ async def simplify_story(story: dict) -> StoryPayload:
         if simplified is not None:
             break
         logger.warning(
-            "[simplify_story] Simplification returned None (attempt %s/%s), retrying: %s",
+            "[simplify_story] Simplification returned None (attempt %s/%s, exc_info=True), retrying: %s",
             attempt, retries, story["link"],
         )
         simplified = await loop.run_in_executor(None, _call_simplify, article_dict, llm)
@@ -127,7 +127,7 @@ async def get_story_payload(max_age_hours: int = 48) -> StoryPayload | None:
     # 1. Fetch RSS
     stories = await asyncio.get_event_loop().run_in_executor(None, fetch_stories, max_age_hours)
     if not stories:
-        logger.warning("[story_service] No stories found in RSS feeds.")
+        logger.warning("[story_service] No stories found in RSS feeds.", exc_info=True)
         return None
 
     # 2. Filter already-sent stories
@@ -140,7 +140,7 @@ async def get_story_payload(max_age_hours: int = 48) -> StoryPayload | None:
     # 3. Select best story
     best = await _select_best_story(stories, llm)
     if not best:
-        logger.warning("[story_service] Could not select a story.")
+        logger.warning("[story_service] Could not select a story.", exc_info=True)
         return None
 
     logger.info("[story_service] Selected: %s", best["title"])

@@ -164,7 +164,7 @@ class TelegramAdapter(PlatformAdapter):
     async def start(self) -> None:
         """Start the Telegram bot (long polling). Call once at startup."""
         if not self.bot_token:
-            logger.warning("[telegram] TELEGRAM_BOT_TOKEN not set — Telegram disabled")
+            logger.warning("[telegram] TELEGRAM_BOT_TOKEN not set — Telegram disabled", exc_info=True)
             return
 
         self._app = Application.builder().token(self.bot_token).build()
@@ -207,7 +207,7 @@ class TelegramAdapter(PlatformAdapter):
             )
             logger.info("[telegram] Channel anchor posted to %s", self.channel_chat_id)
         except Exception as e:
-            logger.warning("[telegram] Could not post channel anchor: %s", e)
+            logger.warning("[telegram] Could not post channel anchor: %s", e, exc_info=True)
 
     async def stop(self) -> None:
         """Stop the bot."""
@@ -259,7 +259,7 @@ class TelegramAdapter(PlatformAdapter):
             )
             return str(msg.message_id)
         except Exception as e:
-            logger.warning("[telegram] create_thread failed: %s", e)
+            logger.warning("[telegram] create_thread failed: %s", e, exc_info=True)
             return None
 
     async def post_thread(self, thread_id: str, payload: StoryPayload) -> None:
@@ -282,7 +282,7 @@ class TelegramAdapter(PlatformAdapter):
                 is_big=True,
             )
         except Exception as e:
-            logger.warning("[telegram] add_reaction failed: %s", e)
+            logger.warning("[telegram] add_reaction failed: %s", e, exc_info=True)
 
     # ── Convenience ────────────────────────────────────────────────────────
 
@@ -302,13 +302,13 @@ class TelegramAdapter(PlatformAdapter):
             # channel_chat_id if set, otherwise this is a no-op (callers use DM directly)
             logger.warning(
                 "[telegram] send_story called without channel_chat_id — "
-                "use send_story_to_dm() or post_channel()"
+                "use send_story_to_dm(, exc_info=True) or post_channel()"
             )
 
     async def send_story_to_dm(self, user_id: int, payload: StoryPayload) -> None:
         """Send a story directly to a user's DM."""
         if not self._app:
-            logger.warning("[telegram] Bot not started — cannot send DM")
+            logger.warning("[telegram] Bot not started — cannot send DM", exc_info=True)
             return
         await _send_story_to(user_id, payload, self._app.bot)
 

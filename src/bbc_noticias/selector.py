@@ -50,5 +50,6 @@ def select_best_story(stories: list[dict], llm: LLM) -> dict | None:
     logger.warning(
         "[selector] Could not match title '%s', falling back to first story.",
         selected_title,
+        exc_info=True,
     )
     return stories[0]

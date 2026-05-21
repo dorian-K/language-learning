@@ -102,7 +102,7 @@ class DiscordAdapter(PlatformAdapter):
             message = await channel.fetch_message(int(channel_msg_id))
             await message.add_reaction("✅")
         except Exception as e:
-            logger.warning("[discord] Could not add reaction to %s: %s", channel_msg_id, e)
+            logger.warning("[discord] Could not add reaction to %s: %s", channel_msg_id, e, exc_info=True)
 
     # ── Full flow ────────────────────────────────────────────────────────
 

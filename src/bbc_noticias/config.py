@@ -61,7 +61,7 @@ def load() -> Config:
     cfg = Config()
     issues = cfg.validate()
     if issues:
-        logger.warning("[config] Missing configuration:")
+        logger.warning("[config] Missing configuration:", exc_info=True)
         for issue in issues:
-            logger.warning("  - %s", issue)
+            logger.warning("  - %s", issue, exc_info=True)
     return cfg

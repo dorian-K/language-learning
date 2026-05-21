@@ -88,7 +88,7 @@ async def _send_discord(payload: StoryPayload) -> bool:
             logger.info("[cron] Discord webhook sent")
             return True
     except Exception as e:
-        logger.warning("[cron] Discord webhook failed: %s", e)
+        logger.warning("[cron] Discord webhook failed: %s", e, exc_info=True)
         return False
 
 
@@ -106,7 +106,7 @@ async def _send_telegram(payload: StoryPayload) -> bool | None:
     if not target:
         logger.warning(
             "[cron] TELEGRAM_BOT_TOKEN set but no TELEGRAM_CHAT_ID or TELEGRAM_CHANNEL_ID"
-        )
+        , exc_info=True)
         return None
 
     try:
@@ -123,7 +123,7 @@ async def _send_telegram(payload: StoryPayload) -> bool | None:
         logger.info("[cron] Telegram sent to %s, msg_id=%s", target, msg.message_id)
         return True
     except Exception as e:
-        logger.warning("[cron] Telegram send failed: %s", e)
+        logger.warning("[cron] Telegram send failed: %s", e, exc_info=True)
         return False
 
 
@@ -158,7 +158,7 @@ def send_article(
             result["discord"] = True
             logger.info("  Discord: ✅")
         except Exception as e:
-            logger.warning("  Discord: ❌ (%s)", e)
+            logger.warning("  Discord: ❌ (%s, exc_info=True)", e)
 
     logger.info(
         "[send_article] Done — discord=%s telegram=%s", result["discord"], result["telegram"]
