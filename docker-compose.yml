@@ -5,6 +5,8 @@ services:
       dockerfile: Dockerfile
     container_name: bbc-cron
     restart: unless-stopped
+    profiles:
+      - cron
     env_file:
       - .env
     environment:
@@ -15,3 +17,34 @@ services:
       - ./shared:/app/shared
       - ./data:/app/data
       - ./.env:/app/.env
+    entrypoint: /app/entrypoint.sh
+
+  bbc-discord:
+    build:
+      context: .
+      dockerfile: Dockerfile.bot
+    container_name: bbc-discord
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - SHARED_QUEUE_PATH=/app/shared/queue.json
+    volumes:
+      - ./shared:/app/shared
+      - ./.env:/app/.env
+    entrypoint: /app/bot_entrypoint.sh
+
+  bbc-telegram:
+    build:
+      context: .
+      dockerfile: Dockerfile.bot
+    container_name: bbc-telegram
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - SHARED_QUEUE_PATH=/app/shared/queue.json
+    volumes:
+      - ./shared:/app/shared
+      - ./.env:/app/.env
+    entrypoint: /app/telegram_entrypoint.sh

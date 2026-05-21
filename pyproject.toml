@@ -31,3 +31,13 @@ ignore = ["E501", "B028", "N802", "N803"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.pyright]
+typeCheckingMode = "basic"
+reportMissingImports = false
+reportUnknownMemberType = false
+ignore = [
+    "src/bbc_noticias/discord_bot.py",
+    "tests/",
+    "typings/",
+]

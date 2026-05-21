@@ -12,6 +12,9 @@ Environment variables:
 
 import asyncio
 import logging
+import os
+import threading
+import time
 
 from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
@@ -22,6 +25,7 @@ from telegram.ext import (
 )
 
 from .base import PlatformAdapter, StoryPayload
+from .. import pubsub
 
 logger = logging.getLogger(__name__)
 
@@ -185,24 +189,7 @@ class TelegramAdapter(PlatformAdapter):
             await self._post_channel_anchor()
 
         if self._app:
-            # When already inside an async context (e.g. started by telegram_bot.py
-            # entrypoint), create a fresh event loop for polling. This avoids
-            # "Cannot close a running event loop" because polling calls
-            # loop.close() on shutdown — which would fail on the caller's loop.
-            try:
-                asyncio.get_running_loop()
-                logger.debug("[telegram] Inside running loop — creating fresh event loop for polling")
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                try:
-                    loop.run_until_complete(
-                        self._app.run_polling(drop_pending_updates=True)  # type: ignore[arg-type]
-                    )
-                finally:
-                    loop.close()
-            except RuntimeError:
-                # No running loop — run_polling creates one safely
-                self._app.run_polling(drop_pending_updates=True)
+            self._app.run_polling(drop_pending_updates=True)
         logger.info("[telegram] Bot started")
 
     async def _post_channel_anchor(self) -> None:
@@ -329,5 +316,34 @@ class TelegramAdapter(PlatformAdapter):
             logger.warning("[telegram] Bot not started — cannot send DM", exc_info=True)
             return
         await _send_story_to(user_id, payload, self._app.bot)
+
+    # ── Queue subscriber (pub/sub) ───────────────────────────────────────────
+
+    def start_subscriber(self) -> None:
+        """
+        Poll the queue every 10 seconds and send pending Telegram stories.
+        Runs in a background daemon thread.
+        """
+        def poll():
+            while True:
+                try:
+                    entries = pubsub.consume_stories_for("telegram")
+                    for entry in entries:
+                        try:
+                            payload = StoryPayload(**entry["story"])
+                            # Send to channel if configured
+                            if self.channel_chat_id:
+                                asyncio.run(
+                                    self.send_story_to_dm(int(self.channel_chat_id), payload)
+                                )
+                        except Exception as e:
+                            logger.error("[telegram] Failed to send queued story: %s", e, exc_info=True)
+                except Exception as e:
+                    logger.error("[telegram] Queue subscriber error: %s", e, exc_info=True)
+                time.sleep(10)
+
+        t = threading.Thread(target=poll, daemon=True)
+        t.start()
+        logger.info("[telegram] Queue subscriber started")
 
     # ── Sent-stories tracking (inherited from PlatformAdapter) ────────────

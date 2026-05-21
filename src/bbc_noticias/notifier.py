@@ -1,18 +1,26 @@
 """
-Cron job — fetches BBC Mundo stories and sends them to Discord + Telegram.
+Cron job — fetches BBC Mundo stories and publishes them to the shared queue.
 
 Runs periodically (e.g. every 2 hours). Fetches new stories from RSS,
-selects the best one via LLM, sends the full story to both platforms.
+selects the best one via LLM, writes to /app/shared/queue.json.
 
-The actual posting is handled here (not via button handlers like Discord).
-Button handlers remain available for on-demand requests via the bot containers.
+Discord and Telegram bots subscribe to the queue independently.
+
+Run once:
+    python -m src.bbc_noticias.notifier
+
+With cron: the entrypoint runs cron daemon which fires:
+    python -m src.bbc_noticias.notifier publish
 """
 
 import asyncio
+import dataclasses
+import json
 import logging
 import os
 import sys
 from datetime import UTC, datetime
+from pathlib import Path
 
 from .adapters.base import StoryPayload
 from .story_service import get_story_payload
@@ -20,20 +28,44 @@ from .story_service import get_story_payload
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
+STORY_QUEUE_PATH = Path(os.getenv("SHARED_QUEUE_PATH", "/app/shared/queue.json"))
 
-def _build_story_text(payload: StoryPayload) -> str:
-    """Format a story as readable plain text (for Telegram)."""
-    return f"📰 *{payload.headline}*\n\n{payload.summary}\n\n{payload.bullets}\n\n🔗 {payload.url}"
+
+def write_to_queue(story_payload: StoryPayload, platform: str) -> None:
+    """Append a story announcement to the shared queue for a specific platform."""
+    STORY_QUEUE_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+    entry = {
+        "story": dataclasses.asdict(story_payload),
+        "platform": platform,  # "discord" | "telegram" | "both"
+        "published_at": datetime.now(UTC).isoformat(),
+    }
+
+    queue = []
+    if STORY_QUEUE_PATH.exists():
+        try:
+            with open(STORY_QUEUE_PATH) as f:
+                queue = json.load(f)
+        except Exception as e:
+            logger.warning("[pubsub] Failed to read queue, starting fresh: %s", e)
+
+    queue.append(entry)
+    with open(STORY_QUEUE_PATH, "w") as f:
+        json.dump(queue, f)
+
+    logger.info("[pubsub] Wrote story to queue for platform=%s: %s", platform, story_payload.headline[:60])
+
+
+# ── Cron entrypoint ─────────────────────────────────────────────────────────────
 
 
 async def run() -> bool:
     """
     Main entry point for the cron job.
-    Returns True if a story was successfully sent to any platform, False otherwise.
+    Fetches story → publishes to queue → returns success status.
     """
     logger.info("[cron] Starting BBC cron job at %s", datetime.now(UTC))
 
-    # Full pipeline: fetch → select → fetch article → simplify → format
     try:
         payload = await get_story_payload(max_age_hours=3)
     except Exception as e:
@@ -46,93 +78,27 @@ async def run() -> bool:
 
     logger.info("[cron] Story ready: %s", payload.headline[:60])
 
-    # ── Discord ───────────────────────────────────────────────────────────
-    discord_sent = await _send_discord(payload)
-
-    # ── Telegram ─────────────────────────────────────────────────────────
-    telegram_sent = await _send_telegram(payload)
-
-    # ── Summary ───────────────────────────────────────────────────────────
-    logger.info(
-        "[cron] Done — discord=%s telegram=%s",
-        "✅" if discord_sent else "❌",
-        "✅" if telegram_sent is True else ("❌" if telegram_sent is False else "N/A"),
-    )
-
-    return discord_sent or (telegram_sent is True)
+    # Publish to both platforms
+    write_to_queue(payload, "both")
+    return True
 
 
-async def _send_discord(payload: StoryPayload) -> bool:
-    """Post story summary to Discord webhook (if configured)."""
-    webhook_url = os.getenv("DISCORD_WEBHOOK_URL", "")
-    if not webhook_url:
-        return False
-
-    try:
-        import httpx  # lazy
-
-        category_emoji = "📰"
-        text = (
-            f"{category_emoji} *Nueva historia de BBC Mundo*\n\n"
-            f"{payload.headline}\n\n"
-            f"{payload.summary}\n\n"
-            f"{payload.bullets}\n\n"
-            f"🔗 {payload.url}"
-        )
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.post(
-                webhook_url,
-                json={"content": text[:2000]},  # Discord limit
-            )
-            resp.raise_for_status()
-            logger.info("[cron] Discord webhook sent")
-            return True
-    except Exception as e:
-        logger.warning("[cron] Discord webhook failed: %s", e, exc_info=True)
-        return False
-
-
-async def _send_telegram(payload: StoryPayload) -> bool | None:
-    """Send full story to Telegram channel/DM (if configured)."""
-    bot_token = os.getenv("TELEGRAM_BOT_TOKEN", "")
-    chat_id = os.getenv("TELEGRAM_CHAT_ID", "")
-    channel_id = os.getenv("TELEGRAM_CHANNEL_ID", "")
-
-    if not bot_token:
-        return None  # Not configured, skip silently
-
-    # Prefer channel if set, otherwise use DM chat_id
-    target = channel_id or chat_id
-    if not target:
-        logger.warning(
-            "[cron] TELEGRAM_BOT_TOKEN set but no TELEGRAM_CHAT_ID or TELEGRAM_CHANNEL_ID"
-        , exc_info=True)
-        return None
-
-    try:
-        from telegram import Bot
-
-        bot = Bot(token=bot_token)
-        text = _build_story_text(payload)
-        msg = await bot.send_message(
-            chat_id=int(target),
-            text=text,
-            parse_mode="Markdown",
-            disable_web_page_preview=True,
-        )
-        logger.info("[cron] Telegram sent to %s, msg_id=%s", target, msg.message_id)
-        return True
-    except Exception as e:
-        logger.warning("[cron] Telegram send failed: %s", e, exc_info=True)
-        return False
-
-
-if __name__ == "__main__":
+def main() -> None:
+    """Sync wrapper for direct invocation."""
     success = asyncio.run(run())
     sys.exit(0 if success else 1)
 
 
-# ── bot.py backward-compatibility shim ─────────────────────────────────────────
+if __name__ == "__main__":
+    main()
+
+
+# ── Legacy compatibility shims (used by bot.py) ────────────────────────────────
+
+
+def _build_story_text(payload: StoryPayload) -> str:
+    """Format a story as readable plain text (for Telegram)."""
+    return f"📰 *{payload.headline}*\n\n{payload.summary}\n\n{payload.bullets}\n\n🔗 {payload.url}"
 
 
 def send_article(
@@ -151,14 +117,13 @@ def send_article(
         try:
             import httpx  # lazy
 
-            # simplified_text is already a formatted string from _build_story_text
             payload = {"content": simplified_text[:2000]}
             resp = httpx.post(webhook_url, json=payload, timeout=10.0)
             resp.raise_for_status()
             result["discord"] = True
             logger.info("  Discord: ✅")
         except Exception as e:
-            logger.warning("  Discord: ❌ (%s, exc_info=True)", e)
+            logger.warning("  Discord: ❌ (%s)", e)
 
     logger.info(
         "[send_article] Done — discord=%s telegram=%s", result["discord"], result["telegram"]

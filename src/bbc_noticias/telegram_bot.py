@@ -27,6 +27,9 @@ async def main() -> None:
 
     adapter = TelegramAdapter(bot_token=bot_token, channel_chat_id=channel_id or None)
 
+    # Start queue subscriber in background before polling begins
+    adapter.start_subscriber()
+
     try:
         await adapter.start()
     except KeyboardInterrupt:

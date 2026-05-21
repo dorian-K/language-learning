@@ -47,6 +47,7 @@ class BotClient(discord.Client):
     async def setup_hook(self) -> None:
         await self._tree.sync()
         self.add_view(StoryView())  # register persistent button view
+        self.adapter.start_subscriber()  # start queue poller in background thread
 
 
 client = BotClient()

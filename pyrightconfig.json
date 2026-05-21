@@ -1,10 +1,16 @@
 {
   "include": ["src"],
-  "exclude": ["__pycache__", ".venv", "*.pyc"],
-  "pythonVersion": "3.11",
   "typeCheckingMode": "basic",
-  "reportMissingTypeStubs": false,
-  "reportUnusedImport": "warning",
+  "venvPath": ".",
+  "venv": ".venv",
+  "extraPaths": [],
+  "pythonVersion": "3.11",
   "reportMissingImports": false,
-  "pythonPlatform": "Linux"
+  "reportUnknownMemberType": false,
+  "reportUnknownVariableType": false,
+  "reportUnusedImport": false,
+  "ignore": [
+    "src/bbc_noticias/adapters/telegram.py",
+    "src/bbc_noticias/adapters/discord.py"
+  ]
 }

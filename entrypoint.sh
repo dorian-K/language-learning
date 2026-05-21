@@ -13,27 +13,9 @@ chmod 0644 /etc/cron.d/bbc-noticias
 # Export shared queue path so Python modules can find it
 export SHARED_QUEUE_PATH=/app/shared/queue.json
 
-# Start cron daemon (runs bot.py at scheduled times)
+# Start cron daemon (fires cron.py publish every 30 min)
 cron -f &
-CRON_PID=$!
 
-# Start Discord bot (long-running, button handler)
-if [ -n "$DISCORD_BOT_TOKEN" ]; then
-    echo "[entrypoint] Starting Discord bot..."
-    /app/.venv/bin/python -m src.bbc_noticias.discord_bot &
-else
-    echo "[entrypoint] DISCORD_BOT_TOKEN not set — skipping Discord bot"
-fi
+echo "[entrypoint] Cron daemon started. PID=$!"
 
-# Start Telegram bot (long-running, /historia + button handler)
-if [ -n "$TELEGRAM_BOT_TOKEN" ]; then
-    echo "[entrypoint] Starting Telegram bot..."
-    /app/.venv/bin/python -m src.bbc_noticias.telegram_bot &
-else
-    echo "[entrypoint] TELEGRAM_BOT_TOKEN not set — skipping Telegram bot"
-fi
-
-echo "[entrypoint] All services started. Cron PID=$CRON_PID"
-
-# Wait for all background processes — trap will kill them on exit
 wait
