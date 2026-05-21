@@ -10,6 +10,7 @@ Environment variables:
   TELEGRAM_CHANNEL_ID — channel ID (numeric, e.g. -1001234567890)
 """
 
+import asyncio
 import logging
 
 from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup, Update
@@ -184,7 +185,26 @@ class TelegramAdapter(PlatformAdapter):
             await self._post_channel_anchor()
 
         if self._app:
-            self._app.run_polling(drop_pending_updates=True)
+            # When already inside an async context, create a fresh event loop for polling.
+            # This avoids "Cannot close a running event loop" errors since polling calls
+            # loop.close() on shutdown — which would fail if the loop is still running.
+            try:
+                asyncio.get_running_loop()
+                logger.debug("[telegram] Inside running loop — creating fresh event loop for polling")
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    coro = self._app.run_polling(drop_pending_updates=True)
+                    loop.run_until_complete(coro)  # type: ignore[arg-type]
+                except Exception:
+                    # On error, stop the loop so it can be closed cleanly
+                    try:
+                        loop.stop()
+                    except Exception:
+                        pass
+            except RuntimeError:
+                # No running loop — run_polling creates one safely
+                self._app.run_polling(drop_pending_updates=True)
         logger.info("[telegram] Bot started")
 
     async def _post_channel_anchor(self) -> None:
