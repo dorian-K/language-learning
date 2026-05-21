@@ -185,23 +185,21 @@ class TelegramAdapter(PlatformAdapter):
             await self._post_channel_anchor()
 
         if self._app:
-            # When already inside an async context, create a fresh event loop for polling.
-            # This avoids "Cannot close a running event loop" errors since polling calls
-            # loop.close() on shutdown — which would fail if the loop is still running.
+            # When already inside an async context (e.g. started by telegram_bot.py
+            # entrypoint), create a fresh event loop for polling. This avoids
+            # "Cannot close a running event loop" because polling calls
+            # loop.close() on shutdown — which would fail on the caller's loop.
             try:
                 asyncio.get_running_loop()
                 logger.debug("[telegram] Inside running loop — creating fresh event loop for polling")
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
                 try:
-                    coro = self._app.run_polling(drop_pending_updates=True)
-                    loop.run_until_complete(coro)  # type: ignore[arg-type]
-                except Exception:
-                    # On error, stop the loop so it can be closed cleanly
-                    try:
-                        loop.stop()
-                    except Exception:
-                        pass
+                    loop.run_until_complete(
+                        self._app.run_polling(drop_pending_updates=True)  # type: ignore[arg-type]
+                    )
+                finally:
+                    loop.close()
             except RuntimeError:
                 # No running loop — run_polling creates one safely
                 self._app.run_polling(drop_pending_updates=True)
