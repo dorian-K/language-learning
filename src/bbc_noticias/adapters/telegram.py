@@ -93,6 +93,7 @@ async def _button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     # Pop the story that was queued when cron sent the channel message.
     # This delivers the SAME story the user clicked on, not a fresh selection.
     from ..queue import pop_story
+
     raw = pop_story()
     if not raw:
         await context.bot.send_message(
@@ -103,6 +104,7 @@ async def _button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
     # Build a StoryPayload from the queued dict for _send_story_to.
     from ..adapters.base import StoryPayload
+
     payload = StoryPayload(
         headline=raw.get("headline", raw.get("title", "")),
         summary=raw.get("summary", ""),
@@ -166,10 +168,12 @@ class TelegramAdapter(PlatformAdapter):
 
     # ── Bot lifecycle ───────────────────────────────────────────────────────
 
-    async def start(self) -> None:
+    def start(self) -> None:
         """Start the Telegram bot (long polling). Call once at startup."""
         if not self.bot_token:
-            logger.warning("[telegram] TELEGRAM_BOT_TOKEN not set — Telegram disabled", exc_info=True)
+            logger.warning(
+                "[telegram] TELEGRAM_BOT_TOKEN not set — Telegram disabled", exc_info=True
+            )
             return
 
         self._app = Application.builder().token(self.bot_token).build()
@@ -186,10 +190,10 @@ class TelegramAdapter(PlatformAdapter):
 
         # Post button anchor to channel if configured
         if self.channel_chat_id:
-            await self._post_channel_anchor()
+            # self._post_channel_anchor()
+            pass  # TODO broken for now... fix in the future
 
-        if self._app:
-            self._app.run_polling(drop_pending_updates=True)
+        self._app.run_polling(drop_pending_updates=True)
         logger.info("[telegram] Bot started")
 
     async def _post_channel_anchor(self) -> None:
@@ -214,10 +218,10 @@ class TelegramAdapter(PlatformAdapter):
         except Exception as e:
             logger.warning("[telegram] Could not post channel anchor: %s", e, exc_info=True)
 
-    async def stop(self) -> None:
+    def stop(self) -> None:
         """Stop the bot."""
         if self._app:
-            await self._app.stop()
+            self._app.stop()
             logger.info("[telegram] Bot stopped")
 
     # ── PlatformAdapter interface ───────────────────────────────────────────
@@ -324,6 +328,7 @@ class TelegramAdapter(PlatformAdapter):
         Poll the queue every 10 seconds and send pending Telegram stories.
         Runs in a background daemon thread.
         """
+
         def poll():
             while True:
                 try:
@@ -337,7 +342,9 @@ class TelegramAdapter(PlatformAdapter):
                                     self.send_story_to_dm(int(self.channel_chat_id), payload)
                                 )
                         except Exception as e:
-                            logger.error("[telegram] Failed to send queued story: %s", e, exc_info=True)
+                            logger.error(
+                                "[telegram] Failed to send queued story: %s", e, exc_info=True
+                            )
                 except Exception as e:
                     logger.error("[telegram] Queue subscriber error: %s", e, exc_info=True)
                 time.sleep(10)

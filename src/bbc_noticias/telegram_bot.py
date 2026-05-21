@@ -17,7 +17,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname
 logger = logging.getLogger(__name__)
 
 
-async def main() -> None:
+def main() -> None:
     bot_token = os.getenv("TELEGRAM_BOT_TOKEN", "")
     channel_id = os.getenv("TELEGRAM_CHANNEL_ID", "")
 
@@ -31,10 +31,10 @@ async def main() -> None:
     adapter.start_subscriber()
 
     try:
-        await adapter.start()
+        adapter.start()
     except KeyboardInterrupt:
-        await adapter.stop()
+        adapter.stop()
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
