@@ -218,10 +218,10 @@ class TelegramAdapter(PlatformAdapter):
         except Exception as e:
             logger.warning("[telegram] Could not post channel anchor: %s", e, exc_info=True)
 
-    def stop(self) -> None:
+    async def stop(self) -> None:
         """Stop the bot."""
         if self._app:
-            self._app.stop()
+            await self._app.stop()
             logger.info("[telegram] Bot stopped")
 
     # ── PlatformAdapter interface ───────────────────────────────────────────
@@ -328,7 +328,6 @@ class TelegramAdapter(PlatformAdapter):
         Poll the queue every 10 seconds and send pending Telegram stories.
         Runs in a background daemon thread.
         """
-
         def poll():
             while True:
                 try:
@@ -336,11 +335,8 @@ class TelegramAdapter(PlatformAdapter):
                     for entry in entries:
                         try:
                             payload = StoryPayload(**entry["story"])
-                            # Send to channel if configured
-                            if self.channel_chat_id:
-                                asyncio.run(
-                                    self.send_story_to_dm(int(self.channel_chat_id), payload)
-                                )
+                            # Run async send_story in a fresh event loop (blocking call)
+                            asyncio.run(self.send_story(payload))
                         except Exception as e:
                             logger.error(
                                 "[telegram] Failed to send queued story: %s", e, exc_info=True

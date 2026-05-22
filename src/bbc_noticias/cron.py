@@ -15,7 +15,7 @@ import asyncio
 import logging
 import sys
 
-from .notifier import run as publish_scheduled_story, write_to_queue  # noqa: F401
+from .notifier import run as publish_scheduled_story  # noqa: F401
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)

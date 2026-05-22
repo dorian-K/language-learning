@@ -33,7 +33,7 @@ def main() -> None:
     try:
         adapter.start()
     except KeyboardInterrupt:
-        adapter.stop()
+        asyncio.run(adapter.stop())
 
 
 if __name__ == "__main__":

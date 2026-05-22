@@ -15,7 +15,6 @@ With cron: the entrypoint runs cron daemon which fires:
 
 import asyncio
 import dataclasses
-import json
 import logging
 import os
 import sys
@@ -24,36 +23,10 @@ from pathlib import Path
 
 from .adapters.base import StoryPayload
 from .story_service import get_story_payload
+from . import pubsub
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
-
-STORY_QUEUE_PATH = Path(os.getenv("SHARED_QUEUE_PATH", "/app/shared/queue.json"))
-
-
-def write_to_queue(story_payload: StoryPayload, platform: str) -> None:
-    """Append a story announcement to the shared queue for a specific platform."""
-    STORY_QUEUE_PATH.parent.mkdir(parents=True, exist_ok=True)
-
-    entry = {
-        "story": dataclasses.asdict(story_payload),
-        "platform": platform,  # "discord" | "telegram" | "both"
-        "published_at": datetime.now(UTC).isoformat(),
-    }
-
-    queue = []
-    if STORY_QUEUE_PATH.exists():
-        try:
-            with open(STORY_QUEUE_PATH) as f:
-                queue = json.load(f)
-        except Exception as e:
-            logger.warning("[pubsub] Failed to read queue, starting fresh: %s", e)
-
-    queue.append(entry)
-    with open(STORY_QUEUE_PATH, "w") as f:
-        json.dump(queue, f)
-
-    logger.info("[pubsub] Wrote story to queue for platform=%s: %s", platform, story_payload.headline[:60])
 
 
 # ── Cron entrypoint ─────────────────────────────────────────────────────────────
@@ -78,8 +51,8 @@ async def run() -> bool:
 
     logger.info("[cron] Story ready: %s", payload.headline[:60])
 
-    # Publish to both platforms
-    write_to_queue(payload, "both")
+    # Publish to both platforms (each bot consumes independently)
+    pubsub.write_to_queue(dataclasses.asdict(payload), "both")
     return True
 
 
