@@ -1,14 +1,10 @@
 # BBC Noticias cron jobs — fires for bbc-cron container
 #
-# Schedule:
-#   - Every 30 minutes: check for new stories
-#   - Weekdays 9-17h: more frequent check (every 30 min already covers this)
-#
 # Each entry calls `python -m src.bbc_noticias.cron publish`
 # which writes to /app/shared/queue.json
 
 PATH=/usr/local/bin:/usr/bin:/bin
 SHARED_QUEUE_PATH=/app/shared/queue.json
 
-# Every 30 minutes, every day
-0,30 * * * * root cd /app && /app/.venv/bin/python -m src.bbc_noticias.cron publish >> /app/cron.log 2>&1
+# at 8am every day
+0 8 * * * root cd /app && /app/.venv/bin/python -m src.bbc_noticias.cron publish >> /app/cron.log 2>&1
