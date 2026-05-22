@@ -11,7 +11,7 @@ import time
 import discord
 
 from .base import PlatformAdapter, StoryPayload
-from .. import pubsub
+from .. import mqtt
 
 logger = logging.getLogger(__name__)
 
@@ -148,57 +148,26 @@ class DiscordAdapter(PlatformAdapter):
 
         _qs.mark_sent(url)
 
-    # ── Queue subscriber (pub/sub) ───────────────────────────────────────────
-
-    @staticmethod
-    async def consume_and_send() -> int:
-        """
-        Atomically consume all pending stories for Discord from the queue
-        and send them. Returns the number of stories sent.
-        """
-        entries = pubsub.consume_stories_for("discord")
-        if not entries:
-            return 0
-
-        sent = 0
-        for entry in entries:
-            try:
-                payload = StoryPayload(**entry["story"])
-                # Use a fresh client session for sending queued stories
-                # (self.client is the bot's connection; send via webhooks)
-                await DiscordAdapter._send_payload_via_client(payload)
-                sent += 1
-            except Exception as e:
-                logger.error("[discord] Failed to send queued story: %s", e, exc_info=True)
-
-        return sent
-
-    @staticmethod
-    async def _send_payload_via_client(payload: StoryPayload) -> None:
-        """
-        Send a story payload using the shared DiscordAdapter client.
-        Finds the client from the module-level client variable.
-        """
-        # Import the module-level client set up in discord_bot.py
-        from .. import discord_bot
-
-        adapter = discord_bot.client.adapter
-        await adapter.send_story(payload)
+    # ── Queue subscriber (MQTT) ─────────────────────────────────────────────────
 
     def start_subscriber(self) -> None:
         """
-        Poll the queue every 10 seconds and send pending Discord stories.
-        Runs in a background daemon thread.
+        Subscribe to the bbc/stories MQTT topic and send stories as they arrive.
+        Auto-reconnects on disconnect. Runs in a background thread.
         """
 
-        def poll():
-            while True:
-                try:
-                    asyncio.run(self.consume_and_send())
-                except Exception as e:
-                    logger.error("[discord] Queue subscriber error: %s", e, exc_info=True)
-                time.sleep(10)
+        async def on_story(payload: dict) -> None:
+            try:
+                story = StoryPayload(**payload)
+                await self.send_story(story)
+            except Exception as e:
+                logger.error("[discord] Failed to send MQTT story: %s", e, exc_info=True)
 
-        t = threading.Thread(target=poll, daemon=True)
-        t.start()
-        logger.info("[discord] Queue subscriber started")
+        # Wrap async callback for the MQTT subscriber thread
+        import asyncio
+
+        def on_story_sync(payload: dict) -> None:
+            asyncio.run(on_story(payload))
+
+        self._mqtt_sub = mqtt.MQTTSubscriber(on_story_sync)
+        self._mqtt_sub.start()

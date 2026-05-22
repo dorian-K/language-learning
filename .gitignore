@@ -24,3 +24,5 @@ env/
 *.egg-info/
 *.egg-info
 shared/
+mosquitto/data/
+mosquitto/log/

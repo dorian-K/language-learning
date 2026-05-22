@@ -23,7 +23,7 @@ from pathlib import Path
 
 from .adapters.base import StoryPayload
 from .story_service import get_story_payload
-from . import pubsub
+from . import mqtt
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -50,8 +50,8 @@ async def run() -> bool:
 
     logger.info("[cron] Story ready: %s", payload.headline[:60])
 
-    # Publish to both platforms (each bot consumes independently)
-    pubsub.write_to_queue(dataclasses.asdict(payload), "both")
+    # Publish story to MQTT topic — broker fans out to all subscribers (discord + telegram)
+    mqtt.write_to_queue(dataclasses.asdict(payload), "both")
     return True
 
 

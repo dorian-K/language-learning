@@ -25,7 +25,7 @@ from telegram.ext import (
 )
 
 from .base import PlatformAdapter, StoryPayload
-from .. import pubsub
+from .. import mqtt
 
 logger = logging.getLogger(__name__)
 
@@ -325,28 +325,31 @@ class TelegramAdapter(PlatformAdapter):
 
     def start_subscriber(self) -> None:
         """
-        Poll the queue every 10 seconds and send pending Telegram stories.
-        Runs in a background daemon thread.
+        Subscribe to the bbc/stories MQTT topic and send stories as they arrive.
+        Auto-reconnects on disconnect.
         """
-        def poll():
-            while True:
-                try:
-                    entries = pubsub.consume_stories_for("telegram")
-                    for entry in entries:
-                        try:
-                            payload = StoryPayload(**entry["story"])
-                            # Run async send_story in a fresh event loop (blocking call)
-                            asyncio.run(self.send_story(payload))
-                        except Exception as e:
-                            logger.error(
-                                "[telegram] Failed to send queued story: %s", e, exc_info=True
-                            )
-                except Exception as e:
-                    logger.error("[telegram] Queue subscriber error: %s", e, exc_info=True)
-                time.sleep(10)
+        from ..adapters.base import StoryPayload
 
-        t = threading.Thread(target=poll, daemon=True)
-        t.start()
-        logger.info("[telegram] Queue subscriber started")
+        def on_story(payload: dict) -> None:
+            try:
+                story = StoryPayload(**payload)
+                asyncio.run(self.send_story(story))
+            except Exception as e:
+                logger.error("[telegram] Failed to send MQTT story: %s", e, exc_info=True)
+
+        self._mqtt_sub = mqtt.MQTTSubscriber(on_story)
+        self._mqtt_sub.start()
+
+    def stop_subscriber(self) -> None:
+        """Stop the MQTT subscriber."""
+        if self._mqtt_sub:
+            self._mqtt_sub.stop()
+
+    async def stop_bot(self) -> None:
+        """Stop the bot."""
+        self.stop_subscriber()
+        if self._app:
+            await self._app.stop()
+            logger.info("[telegram] Bot stopped")
 
     # ── Sent-stories tracking (inherited from PlatformAdapter) ────────────

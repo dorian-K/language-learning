@@ -1,4 +1,16 @@
 services:
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: bbc-mosquitto
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto/config:/mosquitto/config:ro
+      - ./mosquitto/data:/mosquitto/data
+      - ./mosquitto/log:/mosquitto/log
+    command: mosquitto -c /mosquitto/config/mosquitto.conf
+
   bbc-cron:
     build:
       context: .
@@ -9,7 +21,8 @@ services:
       - .env
     environment:
       - DRY_RUN=${DRY_RUN:-false}
-      - SHARED_QUEUE_PATH=/app/shared/queue.json
+      - MQTT_BROKER_HOST=mosquitto
+      - MQTT_PORT=1883
     volumes:
       - ./crontab:/app/crontab:ro
       - ./shared:/app/shared
@@ -26,7 +39,8 @@ services:
     env_file:
       - .env
     environment:
-      - SHARED_QUEUE_PATH=/app/shared/queue.json
+      - MQTT_BROKER_HOST=mosquitto
+      - MQTT_PORT=1883
     volumes:
       - ./shared:/app/shared
       - ./.env:/app/.env
@@ -41,7 +55,8 @@ services:
     env_file:
       - .env
     environment:
-      - SHARED_QUEUE_PATH=/app/shared/queue.json
+      - MQTT_BROKER_HOST=mosquitto
+      - MQTT_PORT=1883
     volumes:
       - ./shared:/app/shared
       - ./.env:/app/.env
