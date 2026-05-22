@@ -28,7 +28,6 @@ from . import pubsub
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
-
 # ── Cron entrypoint ─────────────────────────────────────────────────────────────
 
 
@@ -40,13 +39,13 @@ async def run() -> bool:
     logger.info("[cron] Starting BBC cron job at %s", datetime.now(UTC))
 
     try:
-        payload = await get_story_payload(max_age_hours=3)
+        payload = await get_story_payload()
     except Exception as e:
         logger.error("[cron] get_story_payload failed: %s", e, exc_info=True)
         return False
 
     if not payload:
-        logger.info("[cron] No suitable story found in last 3 hours.")
+        logger.info("[cron] No suitable story found in last 24 hours.")
         return False
 
     logger.info("[cron] Story ready: %s", payload.headline[:60])

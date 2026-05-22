@@ -38,26 +38,36 @@ class DiscordAdapter(PlatformAdapter):
         Post headline to the stories forum channel (or override channel).
         Returns the message ID.
         """
-        channel = channel_override or self.client.get_channel(STORIES_CHANNEL_ID)
+        channel = (
+            channel_override
+            or self.client.get_channel(STORIES_CHANNEL_ID)
+            or self.client.fetch_channel(STORIES_CHANNEL_ID)
+        )
         if not isinstance(channel, discord.TextChannel):  # type: ignore[reportAttributeAccessIssue]
-            raise RuntimeError(f"Channel {getattr(channel, 'id', '?')} not found or not a TextChannel")
+            raise RuntimeError(
+                f"Channel {getattr(channel, 'id', '?')} not found or not a TextChannel"
+            )
 
         msg = await channel.send(payload.headline)
         logger.info(
             "[discord] Posted headline to channel %s: %s",
-            getattr(channel, 'id', STORIES_CHANNEL_ID),
+            getattr(channel, "id", STORIES_CHANNEL_ID),
             payload.headline[:60],
         )
         return str(msg.id)
 
-    async def create_thread(self, payload: StoryPayload, channel_msg_id: str, channel_override=None) -> str:
+    async def create_thread(
+        self, payload: StoryPayload, channel_msg_id: str, channel_override=None
+    ) -> str:
         """
         Create a public thread on the channel message for discussion.
         Returns the thread ID.
         """
         channel = channel_override or self.client.get_channel(STORIES_CHANNEL_ID)
         if not isinstance(channel, discord.TextChannel):  # type: ignore[reportAttributeAccessIssue]
-            raise RuntimeError(f"Channel {getattr(channel, 'id', '?')} not found or not a TextChannel")
+            raise RuntimeError(
+                f"Channel {getattr(channel, 'id', '?')} not found or not a TextChannel"
+            )
 
         try:
             message = await channel.fetch_message(int(channel_msg_id))
@@ -83,15 +93,13 @@ class DiscordAdapter(PlatformAdapter):
         text = payload.text
         chunk_size = 1900
         if len(text) <= chunk_size:
-            content = (
-                f"> {payload.summary}\n\n{payload.bullets}\n\n---\n\n{text}\n\n---\n\n🔗 [Artículo original]({payload.url})"
-            )
+            content = f"> {payload.summary}\n\n{payload.bullets}\n\n---\n\n{text}\n\n---\n\n🔗 [Artículo original]({payload.url})"
             await thread.send(content)  # type: ignore[reportAttributeAccessIssue]
         else:
             # Send summary + bullets first, then the article in chunks
             await thread.send(f"> {payload.summary}\n\n{payload.bullets}")  # type: ignore[reportAttributeAccessIssue]
             for i in range(0, len(text), chunk_size):
-                chunk = text[i:i + chunk_size]
+                chunk = text[i : i + chunk_size]
                 await thread.send(chunk)  # type: ignore[reportAttributeAccessIssue]
             await thread.send(f"\n🔗 [Artículo original]({payload.url})")  # type: ignore[reportAttributeAccessIssue]
 
@@ -106,7 +114,9 @@ class DiscordAdapter(PlatformAdapter):
             message = await channel.fetch_message(int(channel_msg_id))
             await message.add_reaction("✅")
         except Exception as e:
-            logger.warning("[discord] Could not add reaction to %s: %s", channel_msg_id, e, exc_info=True)
+            logger.warning(
+                "[discord] Could not add reaction to %s: %s", channel_msg_id, e, exc_info=True
+            )
 
     # ── Full flow ────────────────────────────────────────────────────────
 
@@ -180,6 +190,7 @@ class DiscordAdapter(PlatformAdapter):
         Poll the queue every 10 seconds and send pending Discord stories.
         Runs in a background daemon thread.
         """
+
         def poll():
             while True:
                 try:
