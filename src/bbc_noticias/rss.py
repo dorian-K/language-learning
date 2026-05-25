@@ -39,10 +39,12 @@ def parse_rss_datetime(date_str: str) -> datetime | None:
         return None
 
 
-def fetch_stories(max_age_hours: int = 24) -> list[dict]:
+def fetch_stories(max_age_hours: int = 24, limit: int | None = None) -> list[dict]:
     """
     Fetch all RSS feeds and return stories published within max_age_hours.
     Each dict: {title, link, description, pub_date, source}
+
+    If limit is set, return at most that many stories (sorted newest first).
     """
     cutoff = datetime.now(UTC) - timedelta(hours=max_age_hours)
     cutoff_timestamp = cutoff.timestamp()
@@ -94,13 +96,19 @@ def fetch_stories(max_age_hours: int = 24) -> list[dict]:
         except Exception as e:
             logger.warning("[rss] Failed to fetch %s: %s", feed_url, e, exc_info=True)
 
+    # Sort newest first, apply limit
+    all_stories.sort(key=lambda s: s["pub_date"], reverse=True)
+    if limit is not None:
+        all_stories = all_stories[:limit]
+
     return all_stories
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(message)s")
-    stories = fetch_stories()
-    print(f"Found {len(stories)} stories from the last 24h:")
-    for s in stories:
-        print(f"  [{s['pub_date']}] {s['title']}")
-        print(f"    {s['link']}")
+    stories = fetch_stories(max_age_hours=168, limit=10)  # last 7 days, top 10
+    print(f"\n=== Top 10 recent stories ===\n")
+    for i, s in enumerate(stories, 1):
+        print(f"{i}. [{s['pub_date']}] {s['title']}")
+        print(f"   Source: {s['source']}")
+        print(f"   {s['link']}\n")

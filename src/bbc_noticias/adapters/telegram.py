@@ -68,23 +68,38 @@ async def _send_story_to(chat_id: int, payload: StoryPayload, bot: Bot) -> None:
             disable_web_page_preview=True,
         )
     else:
-        cursor = 0
-        for match in SPOILER_RE.finditer(text):
-            word = match.group(1)
-            word_start = match.start()
-            word_end = match.end()
-            if cursor < word_start:
-                chunk = clean_text[cursor:word_start]
-                await bot.send_message(chat_id=chat_id, text=chunk)
-                cursor = word_start
-            await bot.send_message(
-                chat_id=chat_id,
-                text=word,
-                entities=[MessageEntity(type=MessageEntity.SPOILER, offset=0, length=len(word))],
+        spoiler_words = [(m.group(1), m.start()) for m in SPOILER_RE.finditer(text)]
+        parts: list[tuple[str, list[MessageEntity]]] = []
+        plain_idx = 0
+        for word, _ in spoiler_words:
+            word_in_clean = clean_text.find(word, plain_idx)
+            if word_in_clean == -1:
+                continue
+            if word_in_clean > plain_idx:
+                parts.append((clean_text[plain_idx:word_in_clean], []))
+            parts.append(
+                (word, [MessageEntity(type=MessageEntity.SPOILER, offset=0, length=len(word))])
             )
-            cursor = word_end
-        if cursor < len(clean_text):
-            await bot.send_message(chat_id=chat_id, text=clean_text[cursor:])
+            plain_idx = word_in_clean + len(word)
+        if plain_idx < len(clean_text):
+            parts.append((clean_text[plain_idx:], []))
+
+        remaining = max_len
+        for part_text, part_entities in parts:
+            if not part_text:
+                continue
+            if len(part_text) <= remaining:
+                await bot.send_message(
+                    chat_id=chat_id,
+                    text=part_text,
+                    entities=part_entities if part_entities else None,
+                )
+                remaining -= len(part_text)
+            else:
+                while part_text:
+                    chunk, part_text = part_text[:remaining], part_text[remaining:]
+                    await bot.send_message(chat_id=chat_id, text=chunk)
+                    remaining = max_len
 
 
 # ── Telegram-specific handlers (not part of PlatformAdapter) ─────────────────
