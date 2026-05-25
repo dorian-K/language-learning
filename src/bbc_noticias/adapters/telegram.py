@@ -37,14 +37,25 @@ def _build_story_text(payload: StoryPayload) -> str:
 
 
 async def _send_story_to(chat_id: int, payload: StoryPayload, bot: Bot) -> None:
-    """Send a formatted story to the given chat."""
+    """Send a formatted story to the given chat, splitting if needed."""
     text = _build_story_text(payload)
-    await bot.send_message(
-        chat_id=chat_id,
-        text=text,
-        parse_mode="Markdown",
-        disable_web_page_preview=True,
-    )
+    max_len = 4096
+    if len(text) <= max_len:
+        await bot.send_message(
+            chat_id=chat_id,
+            text=text,
+            parse_mode="Markdown",
+            disable_web_page_preview=True,
+        )
+    else:
+        chunks = [text[i : i + max_len] for i in range(0, len(text), max_len)]
+        for chunk in chunks:
+            await bot.send_message(
+                chat_id=chat_id,
+                text=chunk,
+                parse_mode="Markdown",
+                disable_web_page_preview=True,
+            )
 
 
 # ── Telegram-specific handlers (not part of PlatformAdapter) ─────────────────
