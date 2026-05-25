@@ -14,7 +14,7 @@ import asyncio
 import logging
 import re
 
-from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup, MessageEntity, Update
+from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
     Application,
     CallbackQueryHandler,
@@ -40,66 +40,16 @@ def _build_story_text(payload: StoryPayload) -> str:
 
 
 async def _send_story_to(chat_id: int, payload: StoryPayload, bot: Bot) -> None:
-    """Send a formatted story to the given chat, splitting if needed."""
+    """Send a formatted story to the given chat, splitting at 4096 chars if needed."""
     text = _build_story_text(payload)
+
+    clean = SPOILER_RE.sub(r"\1", text)
     max_len = 4096
-
-    def _make_entities(raw_text: str) -> list[MessageEntity]:
-        entities: list[MessageEntity] = []
-        for match in SPOILER_RE.finditer(raw_text):
-            word = match.group(1)
-            entities.append(
-                MessageEntity(
-                    type=MessageEntity.SPOILER,
-                    offset=match.start(),
-                    length=len(word),
-                )
-            )
-        return entities
-
-    entities = _make_entities(text)
-    clean_text = SPOILER_RE.sub(r"\1", text)
-
-    if len(clean_text) <= max_len:
-        await bot.send_message(
-            chat_id=chat_id,
-            text=clean_text,
-            entities=entities if entities else None,
-            disable_web_page_preview=True,
-        )
+    if len(clean) <= max_len:
+        await bot.send_message(chat_id=chat_id, text=clean, disable_web_page_preview=True)
     else:
-        spoiler_words = [(m.group(1), m.start()) for m in SPOILER_RE.finditer(text)]
-        parts: list[tuple[str, list[MessageEntity]]] = []
-        plain_idx = 0
-        for word, _ in spoiler_words:
-            word_in_clean = clean_text.find(word, plain_idx)
-            if word_in_clean == -1:
-                continue
-            if word_in_clean > plain_idx:
-                parts.append((clean_text[plain_idx:word_in_clean], []))
-            parts.append(
-                (word, [MessageEntity(type=MessageEntity.SPOILER, offset=0, length=len(word))])
-            )
-            plain_idx = word_in_clean + len(word)
-        if plain_idx < len(clean_text):
-            parts.append((clean_text[plain_idx:], []))
-
-        remaining = max_len
-        for part_text, part_entities in parts:
-            if not part_text:
-                continue
-            if len(part_text) <= remaining:
-                await bot.send_message(
-                    chat_id=chat_id,
-                    text=part_text,
-                    entities=part_entities if part_entities else None,
-                )
-                remaining -= len(part_text)
-            else:
-                while part_text:
-                    chunk, part_text = part_text[:remaining], part_text[remaining:]
-                    await bot.send_message(chat_id=chat_id, text=chunk)
-                    remaining = max_len
+        for i in range(0, len(clean), max_len):
+            await bot.send_message(chat_id=chat_id, text=clean[i : i + max_len])
 
 
 # ── Telegram-specific handlers (not part of PlatformAdapter) ─────────────────
