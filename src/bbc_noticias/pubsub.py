@@ -54,7 +54,10 @@ def write_to_queue(story_payload: dict, platform: Literal["discord", "telegram",
     story_id = story_payload.get("url", "")  # use URL as the unique story ID
 
     targets = ["discord", "telegram"] if platform == "both" else [platform]
-    new_entries = [{"id": story_id, "platform": p, "story": story_payload, "published_at": now} for p in targets]
+    new_entries = [
+        {"id": story_id, "platform": p, "story": story_payload, "published_at": now}
+        for p in targets
+    ]
 
     data = _read_queue()
     data["entries"].extend(new_entries)
@@ -86,7 +89,12 @@ def consume_stories_for(platform: Literal["discord", "telegram"]) -> list[dict]:
     data[consumed_key] = sorted(consumed_set)
     _write_queue(data)
 
-    logger.debug("[pubsub] Consumed %d entries for %s (total consumed=%d)", len(ours), platform, len(consumed_set))
+    logger.debug(
+        "[pubsub] Consumed %d entries for %s (total consumed=%d)",
+        len(ours),
+        platform,
+        len(consumed_set),
+    )
     return ours
 
 
@@ -95,7 +103,9 @@ def get_pending_count(platform: Literal["discord", "telegram"]) -> int:
     data = _read_queue()
     consumed_key = f"consumed_{platform}"
     consumed_set = set(data.get(consumed_key, []))
-    return sum(1 for e in data["entries"] if e.get("platform") == platform and e["id"] not in consumed_set)
+    return sum(
+        1 for e in data["entries"] if e.get("platform") == platform and e["id"] not in consumed_set
+    )
 
 
 def clear_consumed(platform: Literal["discord", "telegram"]) -> None:
@@ -108,4 +118,3 @@ def clear_consumed(platform: Literal["discord", "telegram"]) -> None:
 def clear_all() -> None:
     """Clear all entries and consumed tracking."""
     _write_queue({"entries": [], "consumed": {}})
-

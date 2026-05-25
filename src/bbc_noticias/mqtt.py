@@ -76,7 +76,9 @@ class MQTTPublisher:
         story_json = json.dumps(payload)
         result = client.publish(STORY_TOPIC, story_json, qos=QOS)
         result.wait_for_publish(timeout=5.0)
-        logger.info("[mqtt] Published story to %s: %s", STORY_TOPIC, payload.get("headline", "?")[:60])
+        logger.info(
+            "[mqtt] Published story to %s: %s", STORY_TOPIC, payload.get("headline", "?")[:60]
+        )
 
     def stop(self) -> None:
         """Gracefully stop the publisher."""
@@ -164,4 +166,3 @@ def stop() -> None:
     if _publisher:
         _publisher.stop()
         _publisher = None
-

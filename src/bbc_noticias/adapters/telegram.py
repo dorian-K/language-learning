@@ -12,8 +12,9 @@ Environment variables:
 
 import asyncio
 import logging
+import re
 
-from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup, MessageEntity, Update
 from telegram.ext import (
     Application,
     CallbackQueryHandler,
@@ -25,6 +26,8 @@ from .. import mqtt
 from .base import PlatformAdapter, StoryPayload
 
 logger = logging.getLogger(__name__)
+
+SPOILER_RE = re.compile(r"\|\|([^|]+)\|\|")
 
 # Transient user sessions: chat_id → story payload (awaiting button click)
 # For /historia flow where we send a preview + button before posting
@@ -40,22 +43,48 @@ async def _send_story_to(chat_id: int, payload: StoryPayload, bot: Bot) -> None:
     """Send a formatted story to the given chat, splitting if needed."""
     text = _build_story_text(payload)
     max_len = 4096
-    if len(text) <= max_len:
+
+    def _make_entities(raw_text: str) -> list[MessageEntity]:
+        entities: list[MessageEntity] = []
+        for match in SPOILER_RE.finditer(raw_text):
+            word = match.group(1)
+            entities.append(
+                MessageEntity(
+                    type=MessageEntity.SPOILER,
+                    offset=match.start(),
+                    length=len(word),
+                )
+            )
+        return entities
+
+    entities = _make_entities(text)
+    clean_text = SPOILER_RE.sub(r"\1", text)
+
+    if len(clean_text) <= max_len:
         await bot.send_message(
             chat_id=chat_id,
-            text=text,
-            parse_mode="Markdown",
+            text=clean_text,
+            entities=entities if entities else None,
             disable_web_page_preview=True,
         )
     else:
-        chunks = [text[i : i + max_len] for i in range(0, len(text), max_len)]
-        for chunk in chunks:
+        cursor = 0
+        for match in SPOILER_RE.finditer(text):
+            word = match.group(1)
+            word_start = match.start()
+            word_end = match.end()
+            if cursor < word_start:
+                chunk = clean_text[cursor:word_start]
+                await bot.send_message(chat_id=chat_id, text=chunk)
+                cursor = word_start
             await bot.send_message(
                 chat_id=chat_id,
-                text=chunk,
-                parse_mode="Markdown",
-                disable_web_page_preview=True,
+                text=word,
+                entities=[MessageEntity(type=MessageEntity.SPOILER, offset=0, length=len(word))],
             )
+            cursor = word_end
+        if cursor < len(clean_text):
+            await bot.send_message(chat_id=chat_id, text=clean_text[cursor:])
 
 
 # ── Telegram-specific handlers (not part of PlatformAdapter) ─────────────────

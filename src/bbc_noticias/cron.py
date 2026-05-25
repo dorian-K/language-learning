@@ -30,10 +30,11 @@ def main() -> None:
         sys.exit(0 if success else 1)
     else:
         # Fallback: run scheduler loop (not normally used since we use cron daemon)
-        logger.warning("[cron] No argv[1]=publish — scheduler loop not implemented. Use cron daemon.")
+        logger.warning(
+            "[cron] No argv[1]=publish — scheduler loop not implemented. Use cron daemon."
+        )
         sys.exit(1)
 
 
 if __name__ == "__main__":
     main()
-

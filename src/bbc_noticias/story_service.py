@@ -27,7 +27,9 @@ def _call_simplify(article_dict: dict, llm: LLM) -> dict | None:
         return simplify(article_dict, llm)
     except TypeError as e:
         if "None" in str(e):
-            logger.warning("[simplifier] LLM returned None on simplify, will retry: %s", e, exc_info=True)
+            logger.warning(
+                "[simplifier] LLM returned None on simplify, will retry: %s", e, exc_info=True
+            )
             return None
         raise
 
@@ -68,8 +70,10 @@ async def _select_best_story(stories: list[dict], llm: LLM) -> dict | None:
             return s
 
     logger.warning(
-        "[story_service] Could not match title '%s', falling back to first story.", selected_title
-    , exc_info=True)
+        "[story_service] Could not match title '%s', falling back to first story.",
+        selected_title,
+        exc_info=True,
+    )
     return stories[0]
 
 
@@ -98,7 +102,9 @@ async def simplify_story(story: dict) -> StoryPayload:
             break
         logger.warning(
             "[simplify_story] Simplification returned None (attempt %s/%s, exc_info=True), retrying: %s",
-            attempt, retries, story["link"],
+            attempt,
+            retries,
+            story["link"],
         )
         simplified = await loop.run_in_executor(None, _call_simplify, article_dict, llm)
 

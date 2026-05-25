@@ -38,20 +38,18 @@ class PlatformAdapter(ABC):
     """
 
     @abstractmethod
-    async def post_channel(self, payload: StoryPayload, interaction_channel=None) -> str:
-        ...
+    async def post_channel(self, payload: StoryPayload, interaction_channel=None) -> str: ...
 
     @abstractmethod
-    async def create_thread(self, payload: StoryPayload, channel_msg_id: str, interaction_channel=None) -> str:
-        ...
+    async def create_thread(
+        self, payload: StoryPayload, channel_msg_id: str, interaction_channel=None
+    ) -> str: ...
 
     @abstractmethod
-    async def post_thread(self, thread_id: str, payload: StoryPayload) -> None:
-        ...
+    async def post_thread(self, thread_id: str, payload: StoryPayload) -> None: ...
 
     @abstractmethod
-    async def add_reaction(self, channel_msg_id: str, interaction_channel=None) -> None:
-        ...
+    async def add_reaction(self, channel_msg_id: str, interaction_channel=None) -> None: ...
 
     # ── Convenience ────────────────────────────────────────────────────────
 

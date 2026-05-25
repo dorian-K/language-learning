@@ -38,7 +38,9 @@ def simplify(article_dict: dict, llm: LLM) -> dict:
     )
 
     computed_max_tokens = min(60000, max(16000, 8000 + len(article_text) // 2))
-    logger.info("[simplifier] max_tokens=%s for article text len=%s", computed_max_tokens, len(article_text))
+    logger.info(
+        "[simplifier] max_tokens=%s for article text len=%s", computed_max_tokens, len(article_text)
+    )
 
     raw = llm.complete(
         system=(
@@ -58,4 +60,3 @@ def simplify(article_dict: dict, llm: LLM) -> dict:
     except json.JSONDecodeError as e:
         logger.error("[simplifier] LLM output was not valid JSON: %s\nRaw: %s", e, raw[:500])
         raise
-
