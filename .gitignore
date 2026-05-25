@@ -26,3 +26,4 @@ env/
 shared/
 mosquitto/data/
 mosquitto/log/
+typings/

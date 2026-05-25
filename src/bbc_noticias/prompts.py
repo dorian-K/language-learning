@@ -49,9 +49,10 @@ Below is a Spanish news article. Your task has three parts:
 3. TRANSLATE DIFFICULT WORDS: For any word that is:
    - A complex or uncommon Spanish word, OR
    - Uses advanced vocabulary beyond the students level
-   Add the English translation in ||(text)|| format immediately after the word.
+   Add the English translation in ||word|| format immediately after the word.
    Common difficult words to watch for: {hard_words}
-   The ||(text)|| format is used so the translation can be displayed as a Discord spoiler/hidden text.
+   The ||word|| format is a spoiler tag — the translation is hidden by default
+   and revealed on click. It works on both Discord and Telegram.
 
 Rules:
 - Do NOT add explanations or notes outside the text
