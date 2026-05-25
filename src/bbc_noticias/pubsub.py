@@ -14,7 +14,6 @@ Flow:
 import json
 import logging
 import os
-import threading
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
@@ -109,3 +108,4 @@ def clear_consumed(platform: Literal["discord", "telegram"]) -> None:
 def clear_all() -> None:
     """Clear all entries and consumed tracking."""
     _write_queue({"entries": [], "consumed": {}})
+

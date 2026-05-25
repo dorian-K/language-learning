@@ -19,11 +19,10 @@ import logging
 import os
 import sys
 from datetime import UTC, datetime
-from pathlib import Path
 
+from . import mqtt
 from .adapters.base import StoryPayload
 from .story_service import get_story_payload
-from . import mqtt
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)

@@ -5,13 +5,11 @@ Discord adapter — implements PlatformAdapter for Discord.
 import asyncio
 import logging
 import os
-import threading
-import time
 
 import discord
 
-from .base import PlatformAdapter, StoryPayload
 from .. import mqtt
+from .base import PlatformAdapter, StoryPayload
 
 logger = logging.getLogger(__name__)
 
@@ -164,10 +162,13 @@ class DiscordAdapter(PlatformAdapter):
                 logger.error("[discord] Failed to send MQTT story: %s", e, exc_info=True)
 
         # Wrap async callback for the MQTT subscriber thread
-        import asyncio
 
         def on_story_sync(payload: dict) -> None:
-            asyncio.run(on_story(payload))
+            try:
+                loop = asyncio.get_event_loop()
+                loop.run_until_complete(on_story(payload))
+            except Exception as e:
+                logger.error("[discord] Failed to send MQTT story: %s", e, exc_info=True)
 
         self._mqtt_sub = mqtt.MQTTSubscriber(on_story_sync)
         self._mqtt_sub.start()

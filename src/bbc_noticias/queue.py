@@ -100,7 +100,4 @@ def is_already_queued(url: str) -> bool:
     if not url:
         return False
     data = _load()
-    for s in data["pending"] + data["sent"]:
-        if s.get("link") == url or s.get("url") == url:
-            return True
-    return False
+    return any(s.get("link") == url or s.get("url") == url for s in data["pending"] + data["sent"])

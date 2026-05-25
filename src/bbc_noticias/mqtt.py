@@ -8,13 +8,12 @@ Single topic: bbc/stories
 Broker: eclipse-mosquitto on localhost:1883 (no auth).
 """
 
-import dataclasses
 import json
 import logging
 import os
 import threading
 import time
-from typing import Callable
+from collections.abc import Callable
 
 from paho.mqtt.client import Client
 from paho.mqtt.enums import CallbackAPIVersion
@@ -61,16 +60,21 @@ class MQTTPublisher:
         Publish a story payload to bbc/stories.
         Creates the client on first call (lazy connect).
         """
+        client: Client
         with self._lock:
             if self._client is None:
-                self._client = Client(CallbackAPIVersion.VERSION2)
-                self._client.on_connect = _on_connect
-                self._client.on_disconnect = _on_disconnect
-                self._client.connect(MQTT_BROKER, MQTT_PORT, keepalive=60)
-                self._client.loop_start()
+                client = Client(CallbackAPIVersion.VERSION2)
+                client.on_connect = _on_connect
+                client.on_disconnect = _on_disconnect
+                self._client = client
+            else:
+                client = self._client
+
+        client.connect(MQTT_BROKER, MQTT_PORT, keepalive=60)
+        client.loop_start()
 
         story_json = json.dumps(payload)
-        result = self._client.publish(STORY_TOPIC, story_json, qos=QOS)
+        result = client.publish(STORY_TOPIC, story_json, qos=QOS)
         result.wait_for_publish(timeout=5.0)
         logger.info("[mqtt] Published story to %s: %s", STORY_TOPIC, payload.get("headline", "?")[:60])
 
@@ -160,3 +164,4 @@ def stop() -> None:
     if _publisher:
         _publisher.stop()
         _publisher = None
+

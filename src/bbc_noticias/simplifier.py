@@ -9,9 +9,9 @@ import logging
 import re
 
 from .llm import LLM
+from .prompts import DORIAN_PROFILE, SIMPLIFY_PROMPT, VOCAB_HARD_LIST
 
 logger = logging.getLogger(__name__)
-from .prompts import DORIAN_PROFILE, SIMPLIFY_PROMPT, VOCAB_HARD_LIST
 
 
 def simplify(article_dict: dict, llm: LLM) -> dict:
@@ -58,3 +58,4 @@ def simplify(article_dict: dict, llm: LLM) -> dict:
     except json.JSONDecodeError as e:
         logger.error("[simplifier] LLM output was not valid JSON: %s\nRaw: %s", e, raw[:500])
         raise
+

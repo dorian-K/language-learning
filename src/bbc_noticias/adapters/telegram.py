@@ -12,9 +12,6 @@ Environment variables:
 
 import asyncio
 import logging
-import os
-import threading
-import time
 
 from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
@@ -24,8 +21,8 @@ from telegram.ext import (
     ContextTypes,
 )
 
-from .base import PlatformAdapter, StoryPayload
 from .. import mqtt
+from .base import PlatformAdapter, StoryPayload
 
 logger = logging.getLogger(__name__)
 
@@ -306,13 +303,11 @@ class TelegramAdapter(PlatformAdapter):
         if self.channel_chat_id:
             await self.post_channel(payload)
         else:
-            # No channel configured — send full story to a default DM
-            # Caller should pass the target chat_id, but for now send to
-            # channel_chat_id if set, otherwise this is a no-op (callers use DM directly)
             logger.warning(
                 "[telegram] send_story called without channel_chat_id — "
-                "use send_story_to_dm(, exc_info=True) or post_channel()"
+                "use send_story_to_dm() or post_channel()"
             )
+            return
 
     async def send_story_to_dm(self, user_id: int, payload: StoryPayload) -> None:
         """Send a story directly to a user's DM."""
@@ -333,7 +328,8 @@ class TelegramAdapter(PlatformAdapter):
         def on_story(payload: dict) -> None:
             try:
                 story = StoryPayload(**payload)
-                asyncio.run(self.send_story(story))
+                loop = asyncio.get_event_loop()
+                loop.run_until_complete(self.send_story(story))
             except Exception as e:
                 logger.error("[telegram] Failed to send MQTT story: %s", e, exc_info=True)
 

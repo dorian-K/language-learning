@@ -17,17 +17,6 @@ from .adapters.discord import DiscordAdapter
 from .queue import enqueue_story
 from .story_service import get_story_payload
 
-import dataclasses
-import logging
-import os
-
-import discord
-from discord import app_commands
-
-from .adapters.discord import DiscordAdapter
-from .queue import enqueue_story
-from .story_service import get_story_payload
-
 BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN", "")
 STORIES_CHANNEL_ID = int(os.getenv("DISCORD_STORIES_CHANNEL_ID", "0"))
 FORUM_CHANNEL_ID = int(os.getenv("DISCORD_FORUM_CHANNEL_ID", "0"))
