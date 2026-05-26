@@ -41,6 +41,15 @@ The MQTT subscriber runs in its own non-asyncio thread — do not use `asyncio.r
 - MQTT `connect()` + `loop_start()` must happen **outside** any lock to avoid deadlocking with `stop()`.
 - pyright does not type-check `discord_bot.py` or `tests/` ([pyproject.toml#L41](./pyproject.toml)).
 
+### Telegram spoiler limitation
+
+The LLM outputs translations as `||word||` markers (Discord spoiler format). Telegram's MessageEntity.SPOILER **cannot be mixed with plain text in a single message** — you either send all plain text or all spoilers with entity references. Therefore `||word||` is **stripped to plain text** in `_send_story_to`. Do not attempt to use MessageEntity.SPOILER with mixed content.
+
+### RSS feeds
+
+- `bbc.com/mundo/...` URLs work; `bbc.co.uk/mundo/...` return 403.
+- Run `python -m src.bbc_noticias.rss` to print the top 10 recent stories (last 7 days) for review.
+
 ---
 
 ## Environment
