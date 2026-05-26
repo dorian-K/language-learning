@@ -8,6 +8,12 @@ DORIAN_PROFILE = """
 - Interests: technology, programming, computer science, AI, science,
   world politics, European and German affairs
 - Needs: news that is genuinely interesting and relevant to him or Germany
+- Story preferences: Prefers intellectually engaging stories (e.g. logic puzzles,
+  interesting science, how things work) over fluffy or clickbaity content.
+  Generally uninterested in: random country geopolitics he has no connection to,
+  celebrity/tragic crime stories, generic health tips.
+  Appreciates stories that make him curious — even if the topic is unfamiliar,
+  a compelling intellectual hook can win him over.
 """
 
 STORY_SELECTION_PROMPT = """You are helping select the most relevant news story for a language learner.
@@ -18,12 +24,9 @@ Below are the top stories from BBC Mundo and El Mundo (Spanish) published in the
 {story_list}
 
 Task: Read all stories carefully and select the ONE that is MOST relevant and interesting for the learner described above.
-Consider:
-- Is the topic relevant to a German CS student?
-- Is it timely and significant, not just fluff?
-- Does it offer learning value (useful vocabulary, interesting topic)?
-- Does it relate to Germany, Europe, technology, science, or world affairs?
-
+Strongly prefer stories that are intellectually engaging — curiosity-provoking puzzles,
+fascinating science, how things work. Avoid fluffy clickbaity articles, generic health tips,
+random country geopolitics with no connection to the learner, celebrity/tragic crime stories.
 Respond with ONLY the exact title of the selected story (no explanation, no markdown).
 """.lstrip()
 
