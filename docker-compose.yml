@@ -43,6 +43,7 @@ services:
       - MQTT_PORT=1883
     volumes:
       - ./shared:/app/shared
+      - ./data:/app/data
       - ./.env:/app/.env
     entrypoint: /app/bot_entrypoint.sh
 
@@ -59,5 +60,6 @@ services:
       - MQTT_PORT=1883
     volumes:
       - ./shared:/app/shared
+      - ./data:/app/data
       - ./.env:/app/.env
     entrypoint: /app/telegram_entrypoint.sh
