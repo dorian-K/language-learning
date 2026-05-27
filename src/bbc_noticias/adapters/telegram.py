@@ -318,8 +318,7 @@ class TelegramAdapter(PlatformAdapter):
         """
         from ..adapters.base import StoryPayload
 
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+        main_loop = asyncio.get_running_loop()
 
         async def on_story_async(payload: dict) -> None:
             try:
@@ -330,7 +329,7 @@ class TelegramAdapter(PlatformAdapter):
 
         def on_story(payload: dict) -> None:
             try:
-                loop.run_until_complete(on_story_async(payload))
+                asyncio.run_coroutine_threadsafe(on_story_async(payload), main_loop).result()
             except Exception as e:
                 logger.error("[telegram] Failed to send MQTT story: %s", e, exc_info=True)
 
