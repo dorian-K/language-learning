@@ -180,45 +180,22 @@ class TelegramAdapter(PlatformAdapter):
 
         self._app = Application.builder().token(self.bot_token).build()
 
-        # Register handlers
         self._app.add_handler(CommandHandler("historia", _historia_command))
         self._app.add_handler(CommandHandler("start", _start_command))
         self._app.add_handler(
             CallbackQueryHandler(
                 _button_callback,
-                pattern="nh",  # "nueva historia" prefix
+                pattern="nh",
             )
         )
 
-        # Post button anchor to channel if configured
-        if self.channel_chat_id:
-            # self._post_channel_anchor()
-            pass  # TODO broken for now... fix in the future
+        polling_loop = asyncio.get_event_loop()
+        self._callbacks_loop = polling_loop
+
+        self.start_subscriber()
 
         self._app.run_polling(drop_pending_updates=True)
         logger.info("[telegram] Bot started")
-
-    async def _post_channel_anchor(self) -> None:
-        """Post the persistent button message to the channel."""
-        if not self._app or not self.channel_chat_id:
-            return
-
-        keyboard = [[InlineKeyboardButton("📰 Nueva historia", callback_data="nh")]]
-        markup = InlineKeyboardMarkup(keyboard)
-
-        try:
-            await self._app.bot.send_message(
-                chat_id=int(self.channel_chat_id),
-                text=(
-                    "📰 *BBC Mundo — Nueva Historia*\n\n"
-                    "Haz clic en el botón para recibir una historia en tu DM."
-                ),
-                parse_mode="Markdown",
-                reply_markup=markup,
-            )
-            logger.info("[telegram] Channel anchor posted to %s", self.channel_chat_id)
-        except Exception as e:
-            logger.warning("[telegram] Could not post channel anchor: %s", e, exc_info=True)
 
     async def stop(self) -> None:
         """Stop the bot."""
@@ -314,11 +291,14 @@ class TelegramAdapter(PlatformAdapter):
     def start_subscriber(self) -> None:
         """
         Subscribe to the bbc/stories MQTT topic and send stories as they arrive.
-        Auto-reconnects on disconnect.
+        Auto-reconnects on disconnect. Must be called after the bot's event loop is running.
         """
         from ..adapters.base import StoryPayload
 
-        main_loop = asyncio.get_running_loop()
+        loop = getattr(self, "_callbacks_loop", None)
+        if loop is None:
+            loop = asyncio.get_running_loop()
+            self._callbacks_loop = loop
 
         async def on_story_async(payload: dict) -> None:
             try:
@@ -329,7 +309,7 @@ class TelegramAdapter(PlatformAdapter):
 
         def on_story(payload: dict) -> None:
             try:
-                asyncio.run_coroutine_threadsafe(on_story_async(payload), main_loop).result()
+                asyncio.run_coroutine_threadsafe(on_story_async(payload), loop).result()
             except Exception as e:
                 logger.error("[telegram] Failed to send MQTT story: %s", e, exc_info=True)
 
