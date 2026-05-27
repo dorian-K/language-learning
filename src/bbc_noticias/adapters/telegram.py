@@ -333,8 +333,9 @@ class TelegramAdapter(PlatformAdapter):
         def on_story(payload: dict) -> None:
             try:
                 story = StoryPayload(**payload)
-                loop = asyncio.get_event_loop()
+                loop = asyncio.new_event_loop()
                 loop.run_until_complete(self.send_story(story))
+                loop.close()
             except Exception as e:
                 logger.error("[telegram] Failed to send MQTT story: %s", e, exc_info=True)
 

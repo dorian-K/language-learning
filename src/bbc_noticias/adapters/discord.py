@@ -165,8 +165,9 @@ class DiscordAdapter(PlatformAdapter):
 
         def on_story_sync(payload: dict) -> None:
             try:
-                loop = asyncio.get_event_loop()
+                loop = asyncio.new_event_loop()
                 loop.run_until_complete(on_story(payload))
+                loop.close()
             except Exception as e:
                 logger.error("[discord] Failed to send MQTT story: %s", e, exc_info=True)
 
