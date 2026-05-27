@@ -230,25 +230,13 @@ class TelegramAdapter(PlatformAdapter):
 
     async def post_channel(self, payload: StoryPayload) -> str:
         """
-        Post headline to the configured Telegram channel with a "Nueva historia" button.
-        Returns a synthetic message ID (uuid4 — Telegram doesn't need real IDs for DMs).
+        Post full story content to the configured Telegram channel.
         """
         if not self._app or not self.channel_chat_id:
-            # No channel configured — this shouldn't happen in normal operation since
-            # a channel is always set. Fall back to returning a sentinel (button will
-            # still work via send_story_to_dm).
             return "no-channel"
 
-        keyboard = [[InlineKeyboardButton("📰 Nueva historia", callback_data="nh")]]
-        markup = InlineKeyboardMarkup(keyboard)
-
-        msg = await self._app.bot.send_message(
-            chat_id=int(self.channel_chat_id),
-            text=f"📰 *{payload.headline}*\n\nHaz clic para recibir la historia.",
-            parse_mode="Markdown",
-            reply_markup=markup,
-        )
-        return str(msg.message_id)
+        await _send_story_to(int(self.channel_chat_id), payload, self._app.bot)
+        return "ok"
 
     async def create_thread(self, payload: StoryPayload, channel_msg_id: str) -> str | None:
         """
@@ -330,10 +318,19 @@ class TelegramAdapter(PlatformAdapter):
         """
         from ..adapters.base import StoryPayload
 
-        def on_story(payload: dict) -> None:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        async def on_story_async(payload: dict) -> None:
             try:
                 story = StoryPayload(**payload)
-                asyncio.run(self.send_story(story))
+                await self.send_story(story)
+            except Exception as e:
+                logger.error("[telegram] Failed to send MQTT story: %s", e, exc_info=True)
+
+        def on_story(payload: dict) -> None:
+            try:
+                loop.run_until_complete(on_story_async(payload))
             except Exception as e:
                 logger.error("[telegram] Failed to send MQTT story: %s", e, exc_info=True)
 

@@ -26,7 +26,7 @@ Pre-commit hooks run all three (`ruff check --fix`, `ruff format`, `pyright`).
 
 `bot.py` publishes selected stories to an MQTT broker. The Discord and Telegram bots run as separate containers ([*bbc-discord* and *bbc-telegram*](./docker-compose.yml)) subscribed to that topic. When a user clicks the button (Discord) or requests a story (Telegram), the bot fetches the queued story from MQTT and delivers it.
 
-The MQTT subscriber runs in its own non-asyncio thread — do not use `asyncio.run()` or `asyncio.get_event_loop()` there (both throw when called from a non-main thread). Use `asyncio.run()` to run async code from the MQTT callback instead.
+The MQTT subscriber runs in its own non-asyncio thread — do not use `asyncio.run()` or `asyncio.get_event_loop()` there (both throw when called from a non-main thread). Use `asyncio.new_event_loop()` with `asyncio.set_event_loop()`, then `loop.run_until_complete()` — keep the loop alive and reuse it for all callbacks.
 
 ### Adapters
 
