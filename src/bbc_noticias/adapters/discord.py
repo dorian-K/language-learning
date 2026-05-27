@@ -153,8 +153,7 @@ class DiscordAdapter(PlatformAdapter):
         Subscribe to the bbc/stories MQTT topic and send stories as they arrive.
         Auto-reconnects on disconnect. Runs in a background thread.
         """
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+        main_loop = asyncio.get_running_loop()
 
         async def on_story(payload: dict) -> None:
             try:
@@ -165,7 +164,7 @@ class DiscordAdapter(PlatformAdapter):
 
         def on_story_sync(payload: dict) -> None:
             try:
-                loop.run_until_complete(on_story(payload))
+                asyncio.run_coroutine_threadsafe(on_story(payload), main_loop).result()
             except Exception as e:
                 logger.error("[discord] Failed to send MQTT story: %s", e, exc_info=True)
 
