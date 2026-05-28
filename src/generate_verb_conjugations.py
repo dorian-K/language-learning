@@ -6,7 +6,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from llm import invoke_llm
 
-VOCAB_SOURCE = os.getenv("VOCAB_SOURCE", "lt")
+VOCAB_SOURCE = os.getenv("VOCAB_SOURCE", "Refold ES1K")
 
 VERBS_FILE = os.path.join(
     os.path.dirname(__file__), "../extra_vocab/simple_and_irregular_verbs.txt"
@@ -41,6 +41,7 @@ PERSONS = [
 
 def load_vocab_words():
     vocab = []
+    spanish_words = set()
     if not os.path.exists(VOCAB_FOLDER):
         print(f"Warning: Vocab folder {VOCAB_FOLDER} not found.")
         return vocab
@@ -54,7 +55,7 @@ def load_vocab_words():
                 data = json.load(f)
             for card in data:
                 level = card.get("mandatory_level", "")
-                if level in ["A1", "A2", "B1"]:
+                if level in ["A1", "A2"]:
                     en = card.get("cue_en") or card.get("target_en", "")
                     de = card.get("cue_de") or card.get("target_de", "")
                     es = card.get("cue_spanish") or card.get("target_es", "")
@@ -65,6 +66,9 @@ def load_vocab_words():
                     if isinstance(es, list):
                         es = es[0] if es else ""
                     if en and de and es:
+                        if es in spanish_words:
+                            continue
+                        spanish_words.add(es)
                         vocab.append({"en": en, "de": de, "es": es})
         except Exception as e:
             print(f"Error reading {filename}: {e}")
@@ -101,7 +105,9 @@ Vocabulary words to use in the sentence (A1-B1 level, use at least 2):
 """
 
 
-def process_conjugation(verb, tense_category, tense_name, person, vocab_sample, prompt_text, verbose=False):
+def process_conjugation(
+    verb, tense_category, tense_name, person, vocab_sample, prompt_text, verbose=False
+):
     time.sleep(0.1 * random.random())
     key = f"{verb}_{tense_category}_{tense_name}_{person}".replace("/", "_")
     output_file = os.path.join(OUTPUT_FOLDER, f"{key}.json")
@@ -153,6 +159,7 @@ def main():
             {"en": "to eat", "de": "essen", "es": "comer"},
             {"en": "water", "de": "Wasser", "es": "el agua"},
         ]
+        raise RuntimeError()
 
     with open(PROMPT_FILE, encoding="utf-8") as f:
         prompt_text = f.read()
@@ -161,9 +168,9 @@ def main():
     is_dry_run = os.getenv("DRY_RUN", "false").lower() in ("true", "1", "yes")
 
     if is_dry_run:
-        infinitive, _meaning = verbs[0]
-        tense_category, tense_name = TENSES[0]
-        person = PERSONS[0]
+        infinitive, _meaning = random.choice(verbs)
+        tense_category, tense_name = random.choice(TENSES)
+        person = random.choice(PERSONS)
         vocab_sample = random.sample(vocab, min(5, len(vocab)))
 
         print("\n=== DRY RUN ===")
@@ -176,8 +183,8 @@ def main():
         llm_input = build_llm_input(infinitive, tense_category, tense_name, person, vocab_sample)
         user_message = f"{prompt_text}\n{llm_input}"
 
-        print("--- LLM input ---")
-        print(user_message)
+        # print("--- LLM input ---")
+        # print(user_message)
         print()
 
         vocab_data = invoke_llm(
@@ -200,6 +207,11 @@ def main():
     for infinitive, _meaning in verbs:
         for tense_category, tense_name in TENSES:
             for person in PERSONS:
+                if tense_category == "imperativo" and person not in [
+                    "tú",
+                    "vosotros/vosotras",
+                ]:
+                    continue
                 vocab_sample = random.sample(vocab, min(5, len(vocab)))
                 tasks.append((infinitive, tense_category, tense_name, person, vocab_sample))
 
@@ -208,7 +220,15 @@ def main():
     if is_sequential:
         print("Running sequentially (no parallelization)")
         for infinitive, tense_category, tense_name, person, vocab_sample in tasks:
-            process_conjugation(infinitive, tense_category, tense_name, person, vocab_sample, prompt_text, verbose=True)
+            process_conjugation(
+                infinitive,
+                tense_category,
+                tense_name,
+                person,
+                vocab_sample,
+                prompt_text,
+                verbose=True,
+            )
     else:
         with ThreadPoolExecutor(max_workers=MAX_CONCURRENT_CALLS) as executor:
             futures = {

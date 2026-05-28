@@ -20,10 +20,11 @@ The tense to conjugate is provided in the input.
 - Back: English and German translations of the full sentence
 
 Rules:
-- Use ONLY the provided A1-B1 vocabulary words in the sentence (at least 2 of them)
+- Use the provided A1-A2 vocabulary words in the sentence to ensure randomness. You may choose other words if otherwise the sentence wouldn't make sense
 - Make the sentence natural and contextual for the given tense and person
-- English verbs: start with "to " (e.g. "to be")
-- German verbs: infinitive form (e.g. "sein")
+- Especially make sure that the tense of the verb makes sense given the context
+- The sentence should not be unnecessarily long, the focus is on learning the conjugation of the verb, not the sentence
+- In the end the sentence will be used in a vocabulary learning deck, so make the length fit
 
 ## Output format
 
@@ -39,8 +40,8 @@ Schema:
     "person": "yo",
     "conjugated_form": "soy",
     "example_sentence_es": "Yo [ser] muy cansado.",
-    "example_sentence_en": "I [to be] very tired.",
-    "example_sentence_de": "Ich [sein] sehr müde.",
+    "example_sentence_en": "I am very tired.",
+    "example_sentence_de": "Ich bin sehr müde.",
     "notes": ""
   },
   {
