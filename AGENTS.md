@@ -59,24 +59,42 @@ The LLM outputs translations as `||word||` markers (Discord spoiler format). Tel
 | File | Purpose |
 |---|---|
 | `src/extract_from_anki.py` | Parses existing `.apkg` Anki decks via SQLite, reconstructs them into `genanki` objects, exports notes as JSON for LLM processing. Key functions: `load_apkg_to_genanki()`, `note_to_llm_str()`, `process_note()`, `b64_encode()` |
-| `src/make_anki_deck.py` | Reads processed JSON from `anki/lt/`, creates level-organized decks using `genanki`, exports final `.apkg` files. Uses unified "Symmetrical_ES_EN_DE_Vocab" card model with CSS styling for dual-direction vocab (Spanish↔English/German) |
+| `src/make_anki_deck.py` | Reads processed JSON from multiple input folders (`anki/lt/` for vocab, `anki/irregular_verbs/` for conjugations), creates level-organized decks using `genanki`, exports final `.apkg` files. Uses two card models: "Symmetrical_ES_EN_DE_Vocab" for vocabulary and "Verb_Conjugation_Cards" for verb conjugations. |
 | `src/export_anki_snapshot.py` | Reverse export: converts manually-edited `.apkg` deck back to JSON snapshot for re-ingestion by `make_anki_deck.py` |
 | `src/extract_from_transcrib_vocab.py` | Processes transcript-based vocabulary from `vocab/lt/`, outputs to `anki/lt/` using same `process_note()` function |
 | `src/calc_anki_json_stats.py` | Analyzes vocabulary JSON files, reports distribution by CEFR levels (A1-C2) for "earliest_level" and "mandatory_level" fields |
+| `src/generate_verb_conjugations.py` | Generates verb conjugation flashcard data via LLM. Covers 36 verbs (30 irregular + 6 regular) × 9 tenses × 6 persons × 2 directions = ~3,888 cards. Uses A1-B1 vocabulary from `anki/lt/` for sentence context. Outputs to `anki/irregular_verbs/` |
+| `src/verb_conjugation_prompt.txt` | LLM prompt for generating verb conjugation cards with forward (conjugation practice) and reverse (translation practice) cards |
 
 ### Data Directories
 
 | Directory | Purpose |
 |---|---|
 | `anki/` | Output directory for generated `.apkg` deck files |
-| `vocab/lt/` | Input directory with raw vocabulary JSON from transcripts |
+| `anki/lt/` | Processed vocabulary JSON from transcripts |
+| `anki/irregular_verbs/` | Generated verb conjugation JSON files |
+| `vocab/lt/` | Raw vocabulary JSON from transcripts |
+| `extra_vocab/` | Additional vocabulary files (e.g., `simple_and_irregular_verbs.txt`) |
+
+### Deck Hierarchy
+
+- `Lt::levelA1`, `Lt::levelA2`, ..., `Lt::levelB2` — vocabulary by CEFR level
+- `Lt::Conjugations` — verb conjugation cards (all tenses and persons)
 
 ### Workflow
 
 1. **Extract** — Load existing Anki `.apkg` → JSON via `extract_from_anki.py`
 2. **Process** — LLM enriches with translations, example sentences, CEFR levels, German translations (prompt in `src/extract_from_anki_repackage_prompt.txt`)
-3. **Generate** — Read JSON → level-organized `.apkg` via `make_anki_deck.py`
-4. **Export Snapshot** — Capture manual Anki edits → JSON via `export_anki_snapshot.py`
+3. **Generate Conjugations** — Run `python -m src.generate_verb_conjugations` to produce verb cards via LLM
+4. **Generate Deck** — Read all JSON → level-organized `.apkg` via `make_anki_deck.py`
+5. **Export Snapshot** — Capture manual Anki edits → JSON via `export_anki_snapshot.py`
+
+### Verb Conjugation Cards
+
+- **Forward card** (conjugation practice): Front shows `[infinitive]` placeholder in sentence, back shows conjugated form
+- **Reverse card** (translation practice): Front shows conjugated verb in sentence, back shows English/German translation
+- Tenses covered: presente, pretérito_indefinido, pretérito_imperfecto, futuro, condicional (indicativo); presente, imperfecto (subjuntivo); afirmativo, negativo (imperativo)
+- Persons: yo, tú, él/ella/usted, nosotros/nosotras, vosotros/vosotras, ellos/ellas/ustedes
 
 ### Dependencies
 
