@@ -164,7 +164,7 @@ def process_json_files():
                 data = json.load(f)
 
             # Iterate through the two objects in the array
-            for index, card in enumerate(data):
+            for _index, card in enumerate(data):
                 key = f"{card.get('direction')}|{card.get('cue_spanish', '')}|{card.get('cue_en', '')}|{card.get('cue_de', '')}"
                 if key in entries:
                     num_skipped += 1

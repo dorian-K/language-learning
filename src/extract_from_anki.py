@@ -61,7 +61,7 @@ def load_apkg_to_genanki(apkg_path):
 
     # --- Reconstruct genanki.Model objects ---
     genanki_models = {}
-    for model_id_str, m_data in models_json.items():
+    for _model_id_str, m_data in models_json.items():
         # Anki stores fields and templates with lots of meta-data.
         # We extract just what genanki needs.
         fields = [{"name": f["name"]} for f in m_data.get("flds", [])]
@@ -82,7 +82,7 @@ def load_apkg_to_genanki(apkg_path):
 
     # --- Reconstruct genanki.Deck objects ---
     genanki_decks = {}
-    for deck_id_str, d_data in decks_json.items():
+    for _deck_id_str, d_data in decks_json.items():
         deck_id = int(d_data["id"])
         # Anki auto-generates a Default deck (id: 1) which we usually ignore
         # unless it has cards. We'll load them all just in case.
@@ -154,7 +154,7 @@ def note_to_llm_str(note):
     fields_str = "\n".join(
         [
             f"{field['name']}: {value}"
-            for field, value in zip(model.fields, note.fields)
+            for field, value in zip(model.fields, note.fields, strict=True)
             if field["name"] not in deny_fields
         ]
     )

@@ -29,7 +29,10 @@ def export_deck(apkg_path: str, output_folder: str = "anki/snapshot") -> int:
         for note in deck.notes:
             # Parse all fields (same as note_to_llm_str but keep field names)
             model = note.model
-            fields = {field["name"]: value for field, value in zip(model.fields, note.fields)}
+            fields = {
+                field["name"]: value
+                for field, value in zip(model.fields, note.fields, strict=True)
+            }
 
             snapshot = {
                 "guid": note.guid,

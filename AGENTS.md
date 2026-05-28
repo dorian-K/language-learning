@@ -52,6 +52,38 @@ The LLM outputs translations as `||word||` markers (Discord spoiler format). Tel
 
 ---
 
+## Anki Deck Building
+
+### Core Files
+
+| File | Purpose |
+|---|---|
+| `src/extract_from_anki.py` | Parses existing `.apkg` Anki decks via SQLite, reconstructs them into `genanki` objects, exports notes as JSON for LLM processing. Key functions: `load_apkg_to_genanki()`, `note_to_llm_str()`, `process_note()`, `b64_encode()` |
+| `src/make_anki_deck.py` | Reads processed JSON from `anki/lt/`, creates level-organized decks using `genanki`, exports final `.apkg` files. Uses unified "Symmetrical_ES_EN_DE_Vocab" card model with CSS styling for dual-direction vocab (Spanish↔English/German) |
+| `src/export_anki_snapshot.py` | Reverse export: converts manually-edited `.apkg` deck back to JSON snapshot for re-ingestion by `make_anki_deck.py` |
+| `src/extract_from_transcrib_vocab.py` | Processes transcript-based vocabulary from `vocab/lt/`, outputs to `anki/lt/` using same `process_note()` function |
+| `src/calc_anki_json_stats.py` | Analyzes vocabulary JSON files, reports distribution by CEFR levels (A1-C2) for "earliest_level" and "mandatory_level" fields |
+
+### Data Directories
+
+| Directory | Purpose |
+|---|---|
+| `anki/` | Output directory for generated `.apkg` deck files |
+| `vocab/lt/` | Input directory with raw vocabulary JSON from transcripts |
+
+### Workflow
+
+1. **Extract** — Load existing Anki `.apkg` → JSON via `extract_from_anki.py`
+2. **Process** — LLM enriches with translations, example sentences, CEFR levels, German translations (prompt in `src/extract_from_anki_repackage_prompt.txt`)
+3. **Generate** — Read JSON → level-organized `.apkg` via `make_anki_deck.py`
+4. **Export Snapshot** — Capture manual Anki edits → JSON via `export_anki_snapshot.py`
+
+### Dependencies
+
+`genanki`, `anki` (see `requirements.txt`)
+
+---
+
 ## Environment
 
 - Copy `.env.example` → `.env` and fill in keys.
