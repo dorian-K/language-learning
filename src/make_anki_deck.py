@@ -138,8 +138,9 @@ CONJUGATION_CSS = """
 }
 .example-sentence {
      margin-top: 16px;
+     font-size: 24px;
      font-style: italic;
-     line-height: 1.4;
+     line-height: 1.5;
 }
 .sentence-translation {
      margin-top: 12px;
@@ -171,6 +172,24 @@ hr {
      margin-bottom: 8px;
 }
 .nightMode .special-label {
+     color: rgb(255, 150, 150);
+}
+.tense-hint {
+     margin-top: 16px;
+     font-size: 0.9em;
+     color: rgb(101, 68, 233);
+     cursor: pointer;
+}
+.nightMode .tense-hint {
+     color: rgb(153, 128, 255);
+}
+.tense-reveal {
+     font-size: 1.1em;
+     font-weight: bold;
+     color: rgb(200, 80, 80);
+     margin-bottom: 12px;
+}
+.nightMode .tense-reveal {
      color: rgb(255, 150, 150);
 }
 """
@@ -210,6 +229,30 @@ vocab_model = genanki.Model(
     css=VOCAB_CSS,
 )
 
+TENSE_DESCRIPTIONS = {
+    "presente": ("Presente", "Present tense - ongoing actions, habits, facts"),
+    "presente (subjuntivo)": ("Presente de subjuntivo", "Present subjunctive - wishes, emotions, uncertainty"),
+    "pretérito indefinido": ("Pretérito indefinido", "Simple past - completed actions in the past"),
+    "pretérito_imperfecto": ("Pretérito imperfecto", "Imperfect - ongoing/past habits, descriptions, ongoing background actions"),
+    "futuro": ("Futuro simple", "Simple future - future actions, predictions"),
+    "indicativo/presente": ("Presente", "Present tense - ongoing actions, habits, facts"),
+    "indicativo/pretérito_indefinido": ("Pretérito indefinido", "Simple past - completed actions in the past"),
+    "indicativo/pretérito_imperfecto": ("Pretérito imperfecto", "Imperfect - ongoing/past habits, descriptions"),
+    "indicativo/futuro": ("Futuro simple", "Simple future - future actions, predictions"),
+    "indicativo/condicional": ("Condicional", "Conditional - hypothetical actions, polite requests"),
+    "condicional": ("Condicional", "Conditional - hypothetical actions, polite requests"),
+    "subjuntivo/presente": ("Presente de subjuntivo", "Present subjunctive - wishes, emotions, uncertainty"),
+    "subjuntivo/imperfecto": ("Imperfecto de subjuntivo", "Imperfect subjunctive - hypothetical, past uncertainty"),
+    "subjuntivo imperfecto": ("Imperfecto de subjuntivo", "Imperfect subjunctive - hypothetical, past uncertainty"),
+    "subjuntivo_presente": ("Presente de subjuntivo", "Present subjunctive - wishes, emotions, uncertainty"),
+    "subjuntivo_imperfecto": ("Imperfecto de subjuntivo", "Imperfect subjunctive - hypothetical, past uncertainty"),
+    "imperativo afirmativo": ("Imperativo afirmativo", "Positive commands - telling someone to do something"),
+    "imperativo/afirmativo": ("Imperativo afirmativo", "Positive commands - telling someone to do something"),
+    "imperativo/negativo": ("Imperativo negativo", "Negative commands - telling someone NOT to do something"),
+    "imperfecto de subjuntivo": ("Imperfecto de subjuntivo", "Imperfect subjunctive - hypothetical, past uncertainty"),
+    "pretérito imperfecto": ("Pretérito imperfecto", "Imperfect - ongoing/past habits, descriptions"),
+}
+
 CONJUGATION_MODEL_ID = random.Random("Verb_Conjugation_Cards").randrange(1 << 30, 1 << 31)
 conjugation_model = genanki.Model(
     CONJUGATION_MODEL_ID,
@@ -229,6 +272,7 @@ conjugation_model = genanki.Model(
             <div class="special-label">[Conjugation]</div>
             <div class="word">{{Front_Word}}</div>
             <div class="example-sentence">{{Front_Sentence}}</div>
+            <div class="tense-hint">{{hint:Meta_Tags}}</div>
         </div>
         """,
             "afmt": """
@@ -237,6 +281,7 @@ conjugation_model = genanki.Model(
             <div class="word">{{Front_Word}}</div>
             <div class="example-sentence">{{Front_Sentence}}</div>
             <hr id="answer" />
+            <div class="tense-reveal">{{Meta_Tags}}</div>
             <div class="definition">{{Back_Word}}</div>
             <div class="sentence-translation">{{Back_Sentence}}</div>
         </div>
@@ -266,10 +311,7 @@ conjugation_model = genanki.Model(
     css=CONJUGATION_CSS,
 )
 
-decks_by_name = {}
-
-
-def get_deck_for_config(config, base_name):
+def get_deck_for_config(config, base_name, decks_by_name):
     config_type = config["deck_naming"]
     if config_type == "level":
         full_name = f"Lt::level{base_name}"
@@ -333,11 +375,14 @@ def process_vocab_card(card, deck):
 def process_conjugation_card(card, deck):
     direction = card.get("direction")
     infinitive = card.get("infinitive", "")
-    tense = card.get("tense", "")
+    raw_tense = card.get("tense", "")
     person = card.get("person", "")
     conjugated = card.get("conjugated_form", "")
 
-    meta = f"{tense} | {person}"
+    tense_info = TENSE_DESCRIPTIONS.get(raw_tense, (raw_tense.replace("_", " ").replace("/", " - "), ""))
+    tense_name = tense_info[0]
+    tense_desc = tense_info[1]
+    meta = f"{tense_name}, {person}"
 
     if direction == "conjugation_forward":
         front_word = f"{infinitive} ({person})"
@@ -347,6 +392,7 @@ def process_conjugation_card(card, deck):
             f"<span class='lang-label'>EN:</span> {card.get('example_sentence_en', '')}<br>"
             f"<span class='lang-label'>DE:</span> {card.get('example_sentence_de', '')}"
         )
+        meta = f"{tense_name}, {person}\n{tense_desc}"
     elif direction == "conjugation_reverse":
         front_word = f"{conjugated} ({infinitive})"
         front_sentence = card.get("example_sentence_es", "")
@@ -355,10 +401,11 @@ def process_conjugation_card(card, deck):
             f"<span class='lang-label'>DE:</span> {card.get('example_sentence_de', '')}"
         )
         back_sentence = ""
+        meta = f"{tense_name}, {person}\n{tense_desc}"
     else:
         return None
 
-    key = f"{direction}|{infinitive}|{tense}|{person}"
+    key = f"{direction}|{infinitive}|{raw_tense}|{person}"
     note_guid = genanki.guid_for(key)
     note = genanki.Note(
         model=conjugation_model,
@@ -370,7 +417,7 @@ def process_conjugation_card(card, deck):
 
 
 def process_json_files():
-    total_cards = 0
+    packages = {}
 
     for config in INPUT_CONFIGS:
         folder = config["folder"]
@@ -380,6 +427,10 @@ def process_json_files():
         if not os.path.exists(folder):
             print(f"Warning: Input folder {folder} not found.")
             continue
+
+        deck_name = config.get("deck_name") or os.path.basename(folder)
+        if deck_name not in packages:
+            packages[deck_name] = {"decks": {}, "config": config}
 
         entries = {}
         num_skipped = 0
@@ -426,32 +477,27 @@ def process_json_files():
                     by_level[lvl] = []
                 by_level[lvl].append(entry["card"])
             for lvl, cards in by_level.items():
-                deck = get_deck_for_config(config, lvl)
+                deck = get_deck_for_config(config, lvl, packages[deck_name]["decks"])
                 for card in cards:
                     note = process_func(card, deck)
                     if note:
-                        total_cards += 1
                         folder_card_count += 1
                 print(f"  level{lvl}: {len(cards)} cards")
         else:
-            deck = get_deck_for_config(config, "Conjugations")
+            deck = get_deck_for_config(config, "Conjugations", packages[deck_name]["decks"])
             for entry in entries.values():
                 card = entry["card"]
                 note = process_func(card, deck)
                 if note:
-                    total_cards += 1
                     folder_card_count += 1
 
         print(f"Processed {folder}: {folder_card_count} cards, {num_skipped} duplicates skipped")
 
-    print(f"\nTotal unique cards: {total_cards}")
-
-    output_file = f"{VOCAB_SOURCE}.apkg"
-
     print("\n--- Generating Anki Packages ---")
-    output_file = os.path.join(OUTPUT_FOLDER, output_file)
-    genanki.Package(list(decks_by_name.values())).write_to_file(output_file)
-    print(f"Successfully created: {output_file}")
+    for deck_name, package_data in packages.items():
+        output_file = os.path.join(OUTPUT_FOLDER, f"{deck_name}.apkg")
+        genanki.Package(list(package_data["decks"].values())).write_to_file(output_file)
+        print(f"Successfully created: {output_file}")
 
 
 if __name__ == "__main__":
