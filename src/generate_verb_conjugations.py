@@ -15,7 +15,7 @@ VOCAB_FOLDER = os.path.join(os.path.dirname(__file__), f"../anki/{VOCAB_SOURCE}"
 OUTPUT_FOLDER = os.path.join(os.path.dirname(__file__), "../anki/irregular_verbs")
 PROMPT_FILE = os.path.join(os.path.dirname(__file__), "verb_conjugation_prompt.txt")
 
-MAX_CONCURRENT_CALLS = 10
+MAX_CONCURRENT_CALLS = 50
 
 TENSES = [
     ("indicativo", "presente"),
@@ -230,6 +230,7 @@ def main():
                 verbose=True,
             )
     else:
+        print(f"Parallelization with {MAX_CONCURRENT_CALLS}")
         with ThreadPoolExecutor(max_workers=MAX_CONCURRENT_CALLS) as executor:
             futures = {
                 executor.submit(

@@ -38,7 +38,7 @@ def extract_json_from_text(text):
 
 def invoke_llm(messages, print_reasoning=False, want_json=True):
     response = client.chat.completions.create(
-        model="deepseek-reasoner",
+        model="deepseek-v4-pro",
         messages=messages,
         response_format={"type": "json_object"},
         # Temperature is ignored by deepseek-reasoner (it enforces its own logical temperature)
