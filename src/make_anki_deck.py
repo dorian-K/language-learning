@@ -417,6 +417,7 @@ def process_json_files():
             except Exception as e:
                 print(f"Error processing {filepath}: {e}")
 
+        folder_card_count = 0
         if model_type == "vocab":
             by_level = {}
             for entry in entries.values():
@@ -430,6 +431,7 @@ def process_json_files():
                     note = process_func(card, deck)
                     if note:
                         total_cards += 1
+                        folder_card_count += 1
                 print(f"  level{lvl}: {len(cards)} cards")
         else:
             deck = get_deck_for_config(config, "Conjugations")
@@ -438,8 +440,9 @@ def process_json_files():
                 note = process_func(card, deck)
                 if note:
                     total_cards += 1
+                    folder_card_count += 1
 
-        print(f"Processed {folder}: {total_cards} cards, {num_skipped} duplicates skipped")
+        print(f"Processed {folder}: {folder_card_count} cards, {num_skipped} duplicates skipped")
 
     print(f"\nTotal unique cards: {total_cards}")
 
