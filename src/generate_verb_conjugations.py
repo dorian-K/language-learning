@@ -8,11 +8,25 @@ from llm import invoke_llm
 
 VOCAB_SOURCE = os.getenv("VOCAB_SOURCE", "Refold ES1K")
 
-VERBS_FILE = os.path.join(
-    os.path.dirname(__file__), "../extra_vocab/simple_and_irregular_verbs.txt"
-)
+VERBS_FILES = {
+    "irregular": os.path.join(
+        os.path.dirname(__file__), "../extra_vocab/simple_and_irregular_verbs.txt"
+    ),
+    "regular": os.path.join(
+        os.path.dirname(__file__), "../extra_vocab/regular_verbs.txt"
+    ),
+}
 VOCAB_FOLDER = os.path.join(os.path.dirname(__file__), f"../anki/{VOCAB_SOURCE}")
-OUTPUT_FOLDER = os.path.join(os.path.dirname(__file__), "../anki/irregular_verbs")
+OUTPUT_CONFIGS = {
+    "irregular": {
+        "folder": os.path.join(os.path.dirname(__file__), "../anki/irregular_verbs"),
+        "deck_name": "Conjugations",
+    },
+    "regular": {
+        "folder": os.path.join(os.path.dirname(__file__), "../anki/regular_verbs"),
+        "deck_name": "Regular Conjugations",
+    },
+}
 PROMPT_FILE = os.path.join(os.path.dirname(__file__), "verb_conjugation_prompt.txt")
 
 MAX_CONCURRENT_CALLS = 50
@@ -77,9 +91,9 @@ def load_vocab_words():
     return vocab
 
 
-def load_verbs():
+def load_verbs(filepath):
     verbs = []
-    with open(VERBS_FILE, encoding="utf-8") as f:
+    with open(filepath, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if not line:
@@ -106,11 +120,11 @@ Vocabulary words to use in the sentence (A1-B1 level, use at least 2):
 
 
 def process_conjugation(
-    verb, tense_category, tense_name, person, vocab_sample, prompt_text, verbose=False
+    verb, tense_category, tense_name, person, vocab_sample, prompt_text, output_folder, verbose=False
 ):
     time.sleep(0.1 * random.random())
     key = f"{verb}_{tense_category}_{tense_name}_{person}".replace("/", "_")
-    output_file = os.path.join(OUTPUT_FOLDER, f"{key}.json")
+    output_file = os.path.join(output_folder, f"{key}.json")
 
     if os.path.exists(output_file):
         print(f"Already processed: {key}, skipping.")
@@ -145,109 +159,108 @@ def process_conjugation(
 
 
 def main():
-    os.makedirs(OUTPUT_FOLDER, exist_ok=True)
+    for verb_type, verb_config in VERBS_FILES.items():
+        output_folder = OUTPUT_CONFIGS[verb_type]["folder"]
+        os.makedirs(output_folder, exist_ok=True)
 
-    verbs = load_verbs()
-    vocab = load_vocab_words()
+        verbs = load_verbs(verb_config)
+        vocab = load_vocab_words()
 
-    print(f"Loaded {len(verbs)} verbs and {len(vocab)} vocabulary words.")
+        print(f"[{verb_type}] Loaded {len(verbs)} verbs and {len(vocab)} vocabulary words.")
 
-    if not vocab:
-        print("Warning: No vocabulary words loaded, using defaults.")
-        vocab = [
-            {"en": "the house", "de": "das Haus", "es": "la casa"},
-            {"en": "to eat", "de": "essen", "es": "comer"},
-            {"en": "water", "de": "Wasser", "es": "el agua"},
-        ]
-        raise RuntimeError()
+        if not vocab:
+            print("Warning: No vocabulary words loaded, using defaults.")
+            vocab = [
+                {"en": "the house", "de": "das Haus", "es": "la casa"},
+                {"en": "to eat", "de": "essen", "es": "comer"},
+                {"en": "water", "de": "Wasser", "es": "el agua"},
+            ]
 
-    with open(PROMPT_FILE, encoding="utf-8") as f:
-        prompt_text = f.read()
+        with open(PROMPT_FILE, encoding="utf-8") as f:
+            prompt_text = f.read()
 
-    is_sequential = os.getenv("SEQUENTIAL", "false").lower() in ("true", "1", "yes")
-    is_dry_run = os.getenv("DRY_RUN", "false").lower() in ("true", "1", "yes")
+        is_sequential = os.getenv("SEQUENTIAL", "false").lower() in ("true", "1", "yes")
+        is_dry_run = os.getenv("DRY_RUN", "false").lower() in ("true", "1", "yes")
 
-    if is_dry_run:
-        infinitive, _meaning = random.choice(verbs)
-        tense_category, tense_name = random.choice(TENSES)
-        person = random.choice(PERSONS)
-        vocab_sample = random.sample(vocab, min(5, len(vocab)))
+        if is_dry_run:
+            infinitive, _meaning = random.choice(verbs)
+            tense_category, tense_name = random.choice(TENSES)
+            person = random.choice(PERSONS)
+            vocab_sample = random.sample(vocab, min(5, len(vocab)))
 
-        print("\n=== DRY RUN ===")
-        print(f"Verb: {infinitive}")
-        print(f"Tense: {tense_category}/{tense_name}")
-        print(f"Person: {person}")
-        print(f"Vocab sample: {[v['es'] for v in vocab_sample]}")
-        print()
+            print(f"\n=== DRY RUN [{verb_type}] ===")
+            print(f"Verb: {infinitive}")
+            print(f"Tense: {tense_category}/{tense_name}")
+            print(f"Person: {person}")
+            print(f"Vocab sample: {[v['es'] for v in vocab_sample]}")
+            print()
 
-        llm_input = build_llm_input(infinitive, tense_category, tense_name, person, vocab_sample)
-        user_message = f"{prompt_text}\n{llm_input}"
+            llm_input = build_llm_input(infinitive, tense_category, tense_name, person, vocab_sample)
+            user_message = f"{prompt_text}\n{llm_input}"
 
-        # print("--- LLM input ---")
-        # print(user_message)
-        print()
-
-        vocab_data = invoke_llm(
-            [
-                {
-                    "role": "system",
-                    "content": "You are an expert linguistics AI and Spanish teacher. You output strict JSON arrays.",
-                },
-                {"role": "user", "content": user_message},
-            ],
-            print_reasoning=False,
-        )
-
-        print("--- LLM output (formatted) ---")
-        print(json.dumps(vocab_data, indent=4, ensure_ascii=False))
-        print()
-        return
-
-    tasks = []
-    for infinitive, _meaning in verbs:
-        for tense_category, tense_name in TENSES:
-            for person in PERSONS:
-                if tense_category == "imperativo" and person not in [
-                    "tú",
-                    "vosotros/vosotras",
-                ]:
-                    continue
-                vocab_sample = random.sample(vocab, min(5, len(vocab)))
-                tasks.append((infinitive, tense_category, tense_name, person, vocab_sample))
-
-    print(f"Total tasks: {len(tasks)}")
-
-    if is_sequential:
-        print("Running sequentially (no parallelization)")
-        for infinitive, tense_category, tense_name, person, vocab_sample in tasks:
-            process_conjugation(
-                infinitive,
-                tense_category,
-                tense_name,
-                person,
-                vocab_sample,
-                prompt_text,
-                verbose=True,
+            vocab_data = invoke_llm(
+                [
+                    {
+                        "role": "system",
+                        "content": "You are an expert linguistics AI and Spanish teacher. You output strict JSON arrays.",
+                    },
+                    {"role": "user", "content": user_message},
+                ],
+                print_reasoning=False,
             )
-    else:
-        print(f"Parallelization with {MAX_CONCURRENT_CALLS}")
-        with ThreadPoolExecutor(max_workers=MAX_CONCURRENT_CALLS) as executor:
-            futures = {
-                executor.submit(
-                    process_conjugation,
+
+            print("--- LLM output (formatted) ---")
+            print(json.dumps(vocab_data, indent=4, ensure_ascii=False))
+            print()
+            continue
+
+        tasks = []
+        for infinitive, _meaning in verbs:
+            for tense_category, tense_name in TENSES:
+                for person in PERSONS:
+                    if tense_category == "imperativo" and person not in [
+                        "tú",
+                        "vosotros/vosotras",
+                    ]:
+                        continue
+                    vocab_sample = random.sample(vocab, min(5, len(vocab)))
+                    tasks.append((infinitive, tense_category, tense_name, person, vocab_sample))
+
+        print(f"[{verb_type}] Total tasks: {len(tasks)}")
+
+        if is_sequential:
+            print(f"[{verb_type}] Running sequentially (no parallelization)")
+            for infinitive, tense_category, tense_name, person, vocab_sample in tasks:
+                process_conjugation(
                     infinitive,
                     tense_category,
                     tense_name,
                     person,
                     vocab_sample,
                     prompt_text,
-                    verbose=False,
-                ): (infinitive, tense_category, tense_name, person)
-                for infinitive, tense_category, tense_name, person, vocab_sample in tasks
-            }
+                    output_folder,
+                    verbose=True,
+                )
+        else:
+            print(f"[{verb_type}] Parallelization with {MAX_CONCURRENT_CALLS}")
+            with ThreadPoolExecutor(max_workers=MAX_CONCURRENT_CALLS) as executor:
+                futures = {
+                    executor.submit(
+                        process_conjugation,
+                        infinitive,
+                        tense_category,
+                        tense_name,
+                        person,
+                        vocab_sample,
+                        prompt_text,
+                        output_folder,
+                        verbose=False,
+                    ): (infinitive, tense_category, tense_name, person)
+                    for infinitive, tense_category, tense_name, person, vocab_sample in tasks
+                }
 
-            for future in as_completed(futures):
-                future.result()
+                for future in as_completed(futures):
+                    future.result()
 
 
 if __name__ == "__main__":

@@ -18,6 +18,12 @@ INPUT_CONFIGS = [
         "deck_naming": "flat",
         "deck_name": "Conjugations",
     },
+    {
+        "folder": os.path.join(os.path.dirname(__file__), "../anki/regular_verbs"),
+        "model_type": "conjugation",
+        "deck_naming": "flat",
+        "deck_name": "Regular Conjugations",
+    },
 ]
 
 OUTPUT_FOLDER = os.path.join(os.path.dirname(__file__), "../anki")

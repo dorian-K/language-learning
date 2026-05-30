@@ -1,0 +1,4 @@
+hablar
+comer
+vivir
+trabajar
