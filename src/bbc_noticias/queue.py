@@ -73,6 +73,7 @@ def enqueue_story(story: dict) -> None:
 def pop_story() -> dict | None:
     """Pop the oldest pending story (called by bot when user clicks button)."""
     data = _load()
+    assert isinstance(data, dict), data
     if not data["pending"]:
         return None
     story = data["pending"].pop(0)
