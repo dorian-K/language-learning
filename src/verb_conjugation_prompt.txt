@@ -14,6 +14,7 @@ The tense to conjugate is provided in the input.
 ## Forward card (conjugation practice)
 - Front: Spanish sentence with the conjugated verb replaced by [infinitive], e.g. "Yo [ser] muy cansado."
 - Back: Just the conjugated form, e.g. "soy"
+- If from the context of the sentence it is not obvious which form to use, you may also append the tense/form within the brackets. I.e. [ser, infinitive]
 
 ## Reverse card (translation practice)
 - Front: The same Spanish sentence with the conjugated verb visible
@@ -25,6 +26,8 @@ Rules:
 - Especially make sure that the tense of the verb makes sense given the context
 - The sentence should not be unnecessarily long, the focus is on learning the conjugation of the verb, not the sentence
 - In the end the sentence will be used in a vocabulary learning deck, so make the length fit
+- Forward and reverse card can and should often be different sentences with at least some different words used
+- While designing the sentence, take care to choose a sentence in which it is obvious why that tense is used (it makes sense from the context). This goal is paramount, you may use additional vocabulary to achieve this if necessary
 
 ## Output format
 
