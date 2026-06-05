@@ -43,7 +43,7 @@ async def _send_story_to(chat_id: int, payload: StoryPayload, bot: Bot) -> None:
     """Send a formatted story to the given chat, splitting at 4096 chars if needed."""
     text = _build_story_text(payload)
 
-    clean = SPOILER_RE.sub(r"\1", text)
+    clean = SPOILER_RE.sub(r"(\1)", text)
     max_len = 4096
     if len(clean) <= max_len:
         await bot.send_message(chat_id=chat_id, text=clean, disable_web_page_preview=True)
@@ -61,6 +61,9 @@ async def _historia_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
     chat_id = update.effective_chat.id  # type: ignore[reportOptionalMemberAccess]
 
+    await context.bot.send_message(
+        chat_id=chat_id, text="Preparing story...", disable_web_page_preview=True
+    )
     try:
         payload = await get_story_payload()
     except Exception as e:
