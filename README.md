@@ -47,19 +47,23 @@ I found some anki deck with the 1000 most common spanish words, but it wasn't th
 `python3 src/make_anki_deck.py`
 ## 🗞️ BBC Noticias Bot
 
-A daily Spanish language learning bot: fetches BBC Mundo RSS → selects the most relevant story via AI → simplifies the article for B1 learners (with English word translations) → sends it to Discord or Telegram.
+A daily Spanish language learning bot: fetches BBC Mundo RSS → selects the most relevant story via AI → simplifies the article for B1 learners → posts a headline with a button to Discord/Telegram. Users click the button to receive the full story in their DMs.
 
 ### How it works
 
-The bot has **three separate entry points**, each with a distinct role:
+The bot has **three entry points** backed by an MQTT message bus (Eclipse Mosquitto):
 
 | Entry point | Command | Role |
 |---|---|---|
-| **Daily cron** | `python -m src.bbc_noticias.bot` | Runs at 08:00 CET via crontab. Posts a headline to Discord, then queues the full story. |
-| **Discord bot** | `python -m src.bbc_noticias.discord_bot` | Long-running. Handles `/historia` slash commands and "Nueva historia" button clicks. |
-| **Telegram bot** | `python -m src.bbc_noticias.telegram_bot` | Long-running. Same as Discord bot but for Telegram. |
+| **Daily cron** | `python -m src.bbc_noticias.cron publish` | Runs at 08:00 CET. Fetches RSS, selects + simplifies story, publishes to MQTT. |
+| **Discord bot** | `python -m src.bbc_noticias.discord_bot` | Long-running. Subscribes to MQTT; posts headline + thread to Discord on arrival. Also handles `/historia` slash commands. |
+| **Telegram bot** | `python -m src.bbc_noticias.telegram_bot` | Long-running. Subscribes to MQTT; posts headline + button to channel on arrival. Button click → full story in user's DM. |
 
-**Daily flow:** Cron → posts headline (with button) → user clicks button → bot sends full story to user's DM.
+**Daily flow:**
+1. Cron fires → selects story → publishes full payload to MQTT topic `bbc/stories`
+2. Discord bot receives → posts headline to stories channel → opens a thread with the simplified article
+3. Telegram bot receives → enqueues story to `shared/queue.json` → posts headline + "Leer historia completa" button to channel
+4. User clicks Telegram button → bot pops story from queue → sends full article to user's DM
 
 ### Setup
 
@@ -70,31 +74,33 @@ The bot has **three separate entry points**, each with a distinct role:
 
 2. Get an OpenRouter key at [openrouter.ai/keys](https://openrouter.ai/keys)
 
-3. For Discord: add a webhook to your channel (Channel Settings → Integrations → Webhooks)
+3. For Discord: create a bot at [discord.com/developers](https://discord.com/developers/applications), add it to your server with `Send Messages` + `Create Public Threads` permissions, enable Developer Mode and copy the target channel ID
 
-4. For Telegram: create a bot via [@BotFather](https://t.me/BotFather) and get your chat ID
+4. For Telegram: create a bot via [@BotFather](https://t.me/BotFather), add it as an admin to your channel, and get the channel ID (forward a message from the channel to @userinfobot)
 
 ### Run
 
-**One-shot (manual):**
-```bash
-python -m src.bbc_noticias.bot
-```
-
-**Dry run (no messages sent):**
-```bash
-DRY_RUN=true python -m src.bbc_noticias.bot
-```
-
-**Scheduled (Docker):**
+**Scheduled (Docker — recommended):**
 ```bash
 docker compose up -d
 ```
 
-The container runs daily at 08:00 CET/CEST. The cron job runs `bot.py` which posts to Discord webhook and Telegram.
+Starts four containers: `mosquitto` (MQTT broker), `bbc-cron` (daily job), `bbc-discord`, `bbc-telegram`. The cron fires at 08:00 CET/CEST.
 
-**Scheduled (without Docker):**
-Add a cron entry for `python -m src.bbc_noticias.bot`.
+**Dry run (no messages sent):**
+```bash
+DRY_RUN=true python -m src.bbc_noticias.cron publish
+```
+
+**Manual one-shot:**
+```bash
+python -m src.bbc_noticias.cron publish
+```
+
+**Preview RSS feed:**
+```bash
+python -m src.bbc_noticias.rss
+```
 
 ### Configuration
 
@@ -102,10 +108,10 @@ Add a cron entry for `python -m src.bbc_noticias.bot`.
 |---|---|---|---|
 | `OPENROUTER_API_KEY` | ✅ | — | OpenRouter API key |
 | `OPENROUTER_MODEL` | | `openrouter/auto` | Model to use |
-| `DISCORD_WEBHOOK_URL` | One of | — | Discord webhook URL |
-| `TELEGRAM_BOT_TOKEN` | One of | — | Telegram bot token |
-| `TELEGRAM_CHAT_ID` | | — | Telegram DM chat ID (for user DMs) |
-| `TELEGRAM_CHANNEL_ID` | | — | Telegram channel ID (e.g. -1001234567890) |
-| `MAX_AGE_HOURS` | | `24` | How far back to search RSS |
+| `DISCORD_BOT_TOKEN` | One of | — | Discord bot token (from developer portal) |
+| `DISCORD_STORIES_CHANNEL_ID` | If Discord | — | Channel ID to post stories to |
+| `TELEGRAM_BOT_TOKEN` | One of | — | Telegram bot token (from @BotFather) |
+| `TELEGRAM_CHANNEL_ID` | If Telegram | — | Channel ID to post headlines to (e.g. -1001234567890) |
+| `MAX_AGE_HOURS` | | `48` | How far back to search RSS |
 | `MAX_STORIES_FOR_SELECTION` | | `15` | Stories to include in LLM selection prompt |
 | `DRY_RUN` | | `false` | Skip sending messages |

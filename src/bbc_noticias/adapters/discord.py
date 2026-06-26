@@ -151,9 +151,12 @@ class DiscordAdapter(PlatformAdapter):
     def start_subscriber(self) -> None:
         """
         Subscribe to the bbc/stories MQTT topic and send stories as they arrive.
-        Auto-reconnects on disconnect. Runs in a background thread.
+        Must be called from within the running event loop (discord.py's setup_hook).
         """
-        main_loop = asyncio.get_running_loop()
+        main_loop = asyncio.get_running_loop()  # raises RuntimeError if no loop is running
+        assert main_loop.is_running(), (
+            "start_subscriber() must be called from within the running event loop"
+        )
 
         async def on_story(payload: dict) -> None:
             try:
@@ -168,5 +171,5 @@ class DiscordAdapter(PlatformAdapter):
             except Exception as e:
                 logger.error("[discord] Failed to send MQTT story: %s", e, exc_info=True)
 
-        self._mqtt_sub = mqtt.MQTTSubscriber(on_story_sync)
+        self._mqtt_sub = mqtt.MQTTSubscriber(on_story_sync, client_id="bbc-discord-sub")
         self._mqtt_sub.start()

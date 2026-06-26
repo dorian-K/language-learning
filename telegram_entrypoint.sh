@@ -1,5 +1,5 @@
 #!/bin/bash
 set -e
 export SHARED_QUEUE_PATH=/app/shared/queue.json
-mkdir -p /app/shared
+mkdir -p /app/shared /app/data
 exec /app/.venv/bin/python -m src.bbc_noticias.telegram_bot

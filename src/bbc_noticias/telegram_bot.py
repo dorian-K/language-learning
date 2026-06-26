@@ -25,7 +25,14 @@ def main() -> None:
         logger.error("TELEGRAM_BOT_TOKEN env var is required")
         return
 
-    adapter = TelegramAdapter(bot_token=bot_token, channel_chat_id=channel_id or None)
+    if not channel_id:
+        logger.error(
+            "TELEGRAM_CHANNEL_ID is not set — cron stories cannot be posted to a channel. "
+            "Set TELEGRAM_CHANNEL_ID in .env (e.g. -1001234567890)."
+        )
+        return
+
+    adapter = TelegramAdapter(bot_token=bot_token, channel_chat_id=channel_id)
 
     try:
         adapter.start()

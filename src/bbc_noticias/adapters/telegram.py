@@ -170,6 +170,8 @@ class TelegramAdapter(PlatformAdapter):
         self.channel_chat_id = channel_chat_id
         self.allow_dm = allow_dm
         self._app: Application | None = None
+        self._callbacks_loop: asyncio.AbstractEventLoop | None = None
+        self._mqtt_sub: mqtt.MQTTSubscriber | None = None
 
     # ── Bot lifecycle ───────────────────────────────────────────────────────
 
@@ -181,7 +183,15 @@ class TelegramAdapter(PlatformAdapter):
             )
             return
 
-        self._app = Application.builder().token(self.bot_token).build()
+        async def _post_init(app: Application) -> None:
+            # Called from inside the running event loop — the only safe place to
+            # capture the loop and start the MQTT subscriber. run_polling() creates
+            # its own loop via asyncio.run(), so capturing it before run_polling()
+            # gives a different (non-running) loop.
+            self._callbacks_loop = asyncio.get_running_loop()
+            self.start_subscriber()
+
+        self._app = Application.builder().token(self.bot_token).post_init(_post_init).build()
 
         self._app.add_handler(CommandHandler("historia", _historia_command))
         self._app.add_handler(CommandHandler("start", _start_command))
@@ -191,11 +201,6 @@ class TelegramAdapter(PlatformAdapter):
                 pattern="nh",
             )
         )
-
-        polling_loop = asyncio.get_event_loop()
-        self._callbacks_loop = polling_loop
-
-        self.start_subscriber()
 
         self._app.run_polling(drop_pending_updates=True)
         logger.info("[telegram] Bot started")
@@ -209,14 +214,24 @@ class TelegramAdapter(PlatformAdapter):
     # ── PlatformAdapter interface ───────────────────────────────────────────
 
     async def post_channel(self, payload: StoryPayload) -> str:
-        """
-        Post full story content to the configured Telegram channel.
-        """
-        if not self._app or not self.channel_chat_id:
-            return "no-channel"
+        """Post a headline + 'Read story' button to the configured Telegram channel."""
+        assert self._app is not None, "post_channel() called before bot was started"
+        assert self.channel_chat_id, "post_channel() requires TELEGRAM_CHANNEL_ID to be set"
 
-        await _send_story_to(int(self.channel_chat_id), payload, self._app.bot)
-        return "ok"
+        keyboard = InlineKeyboardMarkup(
+            [[InlineKeyboardButton("📰 Leer historia completa", callback_data="nh")]]
+        )
+        msg = await self._app.bot.send_message(
+            chat_id=int(self.channel_chat_id),
+            text=payload.headline,
+            reply_markup=keyboard,
+        )
+        logger.info(
+            "[telegram] Posted headline to channel %s: %s",
+            self.channel_chat_id,
+            payload.headline[:60],
+        )
+        return str(msg.message_id)
 
     async def create_thread(self, payload: StoryPayload, channel_msg_id: str) -> str | None:
         """
@@ -268,19 +283,20 @@ class TelegramAdapter(PlatformAdapter):
     async def send_story(self, payload: StoryPayload) -> None:
         """
         Full Telegram flow:
-        1. Post headline to channel/DM (with button)
-        2. User clicks button → story arrives in DM
-
-        For DM-only: just send the full story directly.
+        1. Enqueue the full story to the shared file queue
+        2. Post headline + 'Read story' button to the channel
+        3. User clicks button → _button_callback pops from queue and DMs the full story
         """
-        if self.channel_chat_id:
-            await self.post_channel(payload)
-        else:
-            logger.warning(
-                "[telegram] send_story called without channel_chat_id — "
-                "use send_story_to_dm() or post_channel()"
-            )
-            return
+        assert self.channel_chat_id, (
+            "send_story() requires TELEGRAM_CHANNEL_ID — set it in .env"
+        )
+        import dataclasses
+
+        from ..queue import enqueue_story
+
+        enqueue_story(dataclasses.asdict(payload))
+        await self.post_channel(payload)
+        self.mark_sent(payload.url)
 
     async def send_story_to_dm(self, user_id: int, payload: StoryPayload) -> None:
         """Send a story directly to a user's DM."""
@@ -294,14 +310,20 @@ class TelegramAdapter(PlatformAdapter):
     def start_subscriber(self) -> None:
         """
         Subscribe to the bbc/stories MQTT topic and send stories as they arrive.
-        Auto-reconnects on disconnect. Must be called after the bot's event loop is running.
+        Must be called from within the running event loop (via Application.post_init).
         """
         from ..adapters.base import StoryPayload
 
-        loop = getattr(self, "_callbacks_loop", None)
-        if loop is None:
-            loop = asyncio.get_running_loop()
-            self._callbacks_loop = loop
+        loop = self._callbacks_loop
+        assert loop is not None, (
+            "start_subscriber() must be called from Application.post_init, not before run_polling(). "
+            "run_polling() creates its own loop via asyncio.run(), so the loop captured before it "
+            "is never started and run_coroutine_threadsafe on it blocks forever."
+        )
+        assert loop.is_running(), (
+            "event loop passed to start_subscriber() is not running — "
+            "call start_subscriber() from the post_init hook, not from __init__ or before run_polling()"
+        )
 
         async def on_story_async(payload: dict) -> None:
             try:
@@ -316,7 +338,7 @@ class TelegramAdapter(PlatformAdapter):
             except Exception as e:
                 logger.error("[telegram] Failed to send MQTT story: %s", e, exc_info=True)
 
-        self._mqtt_sub = mqtt.MQTTSubscriber(on_story)
+        self._mqtt_sub = mqtt.MQTTSubscriber(on_story, client_id="bbc-telegram-sub")
         self._mqtt_sub.start()
 
     def stop_subscriber(self) -> None:

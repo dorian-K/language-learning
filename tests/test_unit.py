@@ -385,3 +385,132 @@ def test_filter_unsent_rejects_none_items():
     # None in list would crash .strip()
     with pytest.raises(AttributeError):
         filter_unsent(["https://bbc.com/1", None, "https://bbc.com/2"])
+
+
+# ---------------------------------------------------------------------------
+# Bug fixes: event loop, channel env var, headline+button flow
+# ---------------------------------------------------------------------------
+
+
+def test_telegram_adapter_start_subscriber_asserts_loop_set():
+    """start_subscriber() must assert _callbacks_loop is set (not None)."""
+    adapter_src = (
+        Path(__file__).parent.parent / "src" / "bbc_noticias" / "adapters" / "telegram.py"
+    ).read_text()
+
+    assert "assert loop is not None" in adapter_src, (
+        "start_subscriber() must assert _callbacks_loop is not None before scheduling coroutines"
+    )
+
+
+def test_telegram_adapter_start_subscriber_asserts_loop_running():
+    """start_subscriber() must assert the loop is actually running."""
+    adapter_src = (
+        Path(__file__).parent.parent / "src" / "bbc_noticias" / "adapters" / "telegram.py"
+    ).read_text()
+
+    assert "loop.is_running()" in adapter_src, (
+        "start_subscriber() must assert loop.is_running() to catch the pre-run_polling() bug"
+    )
+
+
+def test_telegram_adapter_uses_post_init_not_get_event_loop():
+    """start() must use post_init hook, not asyncio.get_event_loop() before run_polling()."""
+    adapter_src = (
+        Path(__file__).parent.parent / "src" / "bbc_noticias" / "adapters" / "telegram.py"
+    ).read_text()
+
+    assert "post_init" in adapter_src, (
+        "TelegramAdapter.start() must register a post_init hook to start the MQTT subscriber "
+        "from inside the running event loop"
+    )
+    assert "asyncio.get_event_loop()" not in adapter_src, (
+        "asyncio.get_event_loop() before run_polling() captures the wrong loop — use post_init"
+    )
+
+
+def test_telegram_post_channel_sends_button_not_full_article():
+    """post_channel() must send a headline + InlineKeyboard button, not the full article."""
+    adapter_src = (
+        Path(__file__).parent.parent / "src" / "bbc_noticias" / "adapters" / "telegram.py"
+    ).read_text()
+
+    assert "InlineKeyboardMarkup" in adapter_src, (
+        "post_channel() must send an InlineKeyboardMarkup with a 'Nueva historia' button"
+    )
+    assert 'callback_data="nh"' in adapter_src, (
+        "Button callback_data must be 'nh' to match the registered CallbackQueryHandler"
+    )
+
+
+def test_telegram_send_story_enqueues_before_posting():
+    """send_story() must enqueue the story to the file queue before posting the headline."""
+    adapter_src = (
+        Path(__file__).parent.parent / "src" / "bbc_noticias" / "adapters" / "telegram.py"
+    ).read_text()
+
+    assert "enqueue_story" in adapter_src, (
+        "send_story() must call enqueue_story() so _button_callback can pop the full story on click"
+    )
+
+
+def test_telegram_adapter_send_story_asserts_channel_id():
+    """send_story() must assert channel_chat_id is set."""
+    adapter_src = (
+        Path(__file__).parent.parent / "src" / "bbc_noticias" / "adapters" / "telegram.py"
+    ).read_text()
+
+    assert "assert self.channel_chat_id" in adapter_src, (
+        "send_story() must assert channel_chat_id is set to catch misconfigured deployments early"
+    )
+
+
+def test_telegram_bot_main_checks_channel_id():
+    """telegram_bot.py main() must fail fast if TELEGRAM_CHANNEL_ID is not set."""
+    bot_src = (
+        Path(__file__).parent.parent / "src" / "bbc_noticias" / "telegram_bot.py"
+    ).read_text()
+
+    assert "TELEGRAM_CHANNEL_ID" in bot_src, (
+        "telegram_bot.py must read and validate TELEGRAM_CHANNEL_ID (not just TELEGRAM_CHAT_ID)"
+    )
+
+
+def test_env_example_documents_telegram_channel_id():
+    """.env.example must document TELEGRAM_CHANNEL_ID."""
+    env_src = (Path(__file__).parent.parent / ".env.example").read_text()
+    assert "TELEGRAM_CHANNEL_ID" in env_src, (
+        ".env.example must document TELEGRAM_CHANNEL_ID — it was previously undocumented, "
+        "causing silent no-ops when only TELEGRAM_CHAT_ID was set"
+    )
+
+
+def test_env_example_documents_discord_bot_token():
+    """.env.example must document DISCORD_BOT_TOKEN."""
+    env_src = (Path(__file__).parent.parent / ".env.example").read_text()
+    assert "DISCORD_BOT_TOKEN" in env_src, (
+        ".env.example must document DISCORD_BOT_TOKEN — discord_bot.py raises RuntimeError without it"
+    )
+
+
+def test_env_example_documents_discord_stories_channel_id():
+    """.env.example must document DISCORD_STORIES_CHANNEL_ID."""
+    env_src = (Path(__file__).parent.parent / ".env.example").read_text()
+    assert "DISCORD_STORIES_CHANNEL_ID" in env_src, (
+        ".env.example must document DISCORD_STORIES_CHANNEL_ID — discord_bot.py raises RuntimeError without it"
+    )
+
+
+def test_mqtt_subscriber_accepts_client_id():
+    """MQTTSubscriber must accept a client_id for persistent sessions."""
+    mqtt_src = (
+        Path(__file__).parent.parent / "src" / "bbc_noticias" / "mqtt.py"
+    ).read_text()
+
+    assert "client_id" in mqtt_src, (
+        "MQTTSubscriber must accept a client_id parameter to enable persistent MQTT sessions"
+    )
+    assert "clean_session" in mqtt_src, (
+        "MQTTSubscriber must use clean_session=False when client_id is set "
+        "so QoS 1 messages queued while offline are delivered on reconnect"
+    )

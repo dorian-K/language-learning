@@ -93,17 +93,28 @@ class MQTTSubscriber:
     """
     MQTT subscriber that calls a callback for each story payload received.
     Runs in a background thread, auto-reconnects on disconnect.
+
+    Pass a stable client_id to enable persistent sessions (QoS 1 messages
+    queued by the broker while the subscriber is offline are delivered on
+    reconnect). Without a client_id the session is ephemeral and messages
+    published while disconnected are lost.
     """
 
-    def __init__(self, callback: Callable[[dict], None]) -> None:
+    def __init__(self, callback: Callable[[dict], None], client_id: str = "") -> None:
         self._callback = callback
+        self._client_id = client_id
         self._client: Client | None = None
         self._stop_event = threading.Event()
         self._thread: threading.Thread | None = None
 
     def _create_client(self) -> Client:
+        # clean_session=False requires a stable client_id so the broker can
+        # match the reconnecting client to its durable session.
+        persistent = bool(self._client_id)
         client = Client(
             CallbackAPIVersion.VERSION2,
+            client_id=self._client_id or "",
+            clean_session=not persistent,
             userdata={"callback": self._callback},
         )
         client.on_connect = _on_connect
