@@ -32,7 +32,7 @@ def main() -> None:
         )
         return
 
-    adapter = TelegramAdapter(bot_token=bot_token, channel_chat_id=channel_id)
+    adapter = TelegramAdapter(bot_token=bot_token, channel_chat_id=channel_id or None)
 
     try:
         adapter.start()

@@ -57,13 +57,18 @@ The bot has **three entry points** backed by an MQTT message bus (Eclipse Mosqui
 |---|---|---|
 | **Daily cron** | `python -m src.bbc_noticias.cron publish` | Runs at 08:00 CET. Fetches RSS, selects + simplifies story, publishes to MQTT. |
 | **Discord bot** | `python -m src.bbc_noticias.discord_bot` | Long-running. Subscribes to MQTT; posts headline + thread to Discord on arrival. Also handles `/historia` slash commands. |
-| **Telegram bot** | `python -m src.bbc_noticias.telegram_bot` | Long-running. Subscribes to MQTT; posts headline + button to channel on arrival. Button click → full story in user's DM. |
+| **Telegram bot** | `python -m src.bbc_noticias.telegram_bot` | Long-running. Subscribes to MQTT; posts full story to channel on arrival. Also handles on-demand DM requests. |
 
-**Daily flow:**
+**Daily channel flow:**
 1. Cron fires → selects story → publishes full payload to MQTT topic `bbc/stories`
 2. Discord bot receives → posts headline to stories channel → opens a thread with the simplified article
-3. Telegram bot receives → enqueues story to `shared/queue.json` → posts headline + "Leer historia completa" button to channel
-4. User clicks Telegram button → bot pops story from queue → sends full article to user's DM
+3. Telegram bot receives → posts full simplified article directly to `TELEGRAM_CHANNEL_ID`
+
+**Telegram DM (on-demand, independent of cron):**
+- Send any message (or `/historia`) to the bot in a private chat
+- Bot picks the next story you haven't seen yet and sends it immediately
+- Each user has their own history — you always get a different story per request
+- Tracked separately from the channel feed: the same story can appear in both
 
 ### Setup
 

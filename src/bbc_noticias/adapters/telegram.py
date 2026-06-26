@@ -1,9 +1,16 @@
 """
 Telegram adapter — posts BBC stories to Telegram channels and DMs.
 
-Two ways to get a story:
-1. /historia command — sends a story to the user's DM (or current chat)
-2. "📰 Nueva historia" inline button on any chat — sends story to the user's DM
+Two independent flows:
+1. Channel (automatic, daily via cron/MQTT):
+   - Cron publishes story → MQTT → TelegramAdapter.send_story()
+   - Full simplified story posted directly to TELEGRAM_CHANNEL_ID
+   - Deduped via data/channel_sent.txt (sent_stories.py)
+
+2. DM (on-demand, per-user):
+   - Any private text message (or /historia command) → next unsent story for that user
+   - Deduped per-user via data/dm_sent.json (dm_sent.py)
+   - Tracking is independent: the same story can appear in both the channel and a DM
 
 Environment variables:
   TELEGRAM_BOT_TOKEN  — bot token from @BotFather
@@ -14,12 +21,13 @@ import asyncio
 import logging
 import re
 
-from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram import Bot, Update
 from telegram.ext import (
     Application,
-    CallbackQueryHandler,
     CommandHandler,
     ContextTypes,
+    MessageHandler,
+    filters,
 )
 
 from .. import mqtt
@@ -28,10 +36,6 @@ from .base import PlatformAdapter, StoryPayload
 logger = logging.getLogger(__name__)
 
 SPOILER_RE = re.compile(r"\|\|([^|]+)\|\|")
-
-# Transient user sessions: chat_id → story payload (awaiting button click)
-# For /historia flow where we send a preview + button before posting
-_pending: dict[int, dict] = {}
 
 
 def _build_story_text(payload: StoryPayload) -> str:
@@ -42,7 +46,8 @@ def _build_story_text(payload: StoryPayload) -> str:
 async def _send_story_to(chat_id: int, payload: StoryPayload, bot: Bot) -> None:
     """Send a formatted story to the given chat, splitting at 4096 chars if needed."""
     text = _build_story_text(payload)
-
+    # Telegram MessageEntity.SPOILER cannot mix with plain text in a single message,
+    # so strip ||word|| markers to plain (word) instead.
     clean = SPOILER_RE.sub(r"(\1)", text)
     max_len = 4096
     if len(clean) <= max_len:
@@ -52,22 +57,26 @@ async def _send_story_to(chat_id: int, payload: StoryPayload, bot: Bot) -> None:
             await bot.send_message(chat_id=chat_id, text=clean[i : i + max_len])
 
 
-# ── Telegram-specific handlers (not part of PlatformAdapter) ─────────────────
+# ── Handlers ─────────────────────────────────────────────────────────────────
 
 
-async def _historia_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /historia — send a story to the user's DM (or current chat)."""
-    from ..story_service import get_story_payload  # lazy to avoid circular import
+async def _dm_story_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """
+    Handle any private text message or /historia command.
+    Fetches the next story this user hasn't seen and sends it to the same chat.
+    Uses per-user tracking so each invocation gives a different story.
+    """
+    from ..story_service import get_story_for_user
 
     chat_id = update.effective_chat.id  # type: ignore[reportOptionalMemberAccess]
+    user_id = update.effective_user.id  # type: ignore[reportOptionalMemberAccess]
 
-    await context.bot.send_message(
-        chat_id=chat_id, text="Preparing story...", disable_web_page_preview=True
-    )
+    await context.bot.send_message(chat_id=chat_id, text="Buscando historia...")
+
     try:
-        payload = await get_story_payload()
+        payload = await get_story_for_user(user_id)
     except Exception as e:
-        logger.error("[telegram] get_story_payload failed: %s", e, exc_info=True)
+        logger.error("[telegram] get_story_for_user failed for %s: %s", user_id, e, exc_info=True)
         await context.bot.send_message(
             chat_id=chat_id,
             text="❌ Error al obtener historia. Inténtalo de nuevo.",
@@ -77,70 +86,23 @@ async def _historia_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     if not payload:
         await context.bot.send_message(
             chat_id=chat_id,
-            text="❌ No se encontró ninguna historia. Prueba otra vez.",
+            text="❌ No hay historias nuevas disponibles. Prueba mañana.",
         )
         return
 
     await _send_story_to(chat_id, payload, context.bot)
-    logger.info("[telegram] Story sent to chat %s: %s", chat_id, payload.headline[:50])
-
-
-async def _button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """
-    Handle "📰 Nueva historia" button clicks.
-    Sends the story to the user's DM (not to the channel).
-    """
-    query = update.callback_query
-    await query.answer()  # type: ignore[reportOptionalMemberAccess]  # Acknowledge immediately
-
-    user_id = query.from_user.id  # type: ignore[reportOptionalMemberAccess]
-
-    # Pop the story that was queued when cron sent the channel message.
-    # This delivers the SAME story the user clicked on, not a fresh selection.
-    from ..queue import pop_story
-
-    raw = pop_story()
-    if not raw:
-        await context.bot.send_message(
-            chat_id=user_id,
-            text="❌ No hay ninguna historia en cola. Espera a la próxima publicación o usa /historia.",
-        )
-        return
-
-    # Build a StoryPayload from the queued dict for _send_story_to.
-    from ..adapters.base import StoryPayload
-
-    payload = StoryPayload(
-        headline=raw.get("headline", raw.get("title", "")),
-        summary=raw.get("summary", ""),
-        bullets=raw.get("bullets", ""),
-        text=raw.get("text", ""),
-        url=raw.get("url", raw.get("link", "")),
-        topic_title=raw.get("topic_title", raw.get("title", "")),
-    )
-
-    # Send to the user's DM
-    await _send_story_to(user_id, payload, context.bot)
-    logger.info(
-        "[telegram] Button story sent to DM %s: %s",
-        user_id,
-        payload.headline[:50],
-    )
-
-    # Edit the original message to confirm
-    await query.edit_message_text(  # type: ignore[reportOptionalMemberAccess]
-        text="✅ ¡Historia enviada a tu DM! Revisa tus mensajes privados.",
-    )
+    logger.info("[telegram] DM story sent to user %s: %s", user_id, payload.headline[:50])
 
 
 async def _start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /start — welcome the user and explain how to use the bot."""
+    """Handle /start — welcome the user."""
     await context.bot.send_message(
         chat_id=update.effective_chat.id,  # type: ignore[reportOptionalMemberAccess]
         text=(
             "👋 *BBC Mundo Bot*\n\n"
-            "Usa /historia para recibir una historia nueva de BBC Mundo.\n"
-            "O haz clic en el botón si lo ves en un canal."
+            "Escríbeme cualquier mensaje (o usa /historia) para recibir "
+            "una historia nueva de BBC Mundo.\n"
+            "Cada vez que escribes te mando una historia distinta."
         ),
         parse_mode="Markdown",
     )
@@ -153,22 +115,17 @@ class TelegramAdapter(PlatformAdapter):
     """
     Telegram-specific posting via python-telegram-bot (v22+).
 
-    Supports:
-    - Channel posting (with inline "Nueva historia" button)
-    - DM posting (direct, no button)
-    - /historia slash command
-    - "Nueva historia" button → sends story to user's DM
+    Channel flow (automatic):  send_story() → full article posted to TELEGRAM_CHANNEL_ID
+    DM flow (on-demand):       any private message → _dm_story_handler → per-user next story
     """
 
     def __init__(
         self,
         bot_token: str,
         channel_chat_id: str | None = None,
-        allow_dm: bool = True,
     ):
         self.bot_token = bot_token
         self.channel_chat_id = channel_chat_id
-        self.allow_dm = allow_dm
         self._app: Application | None = None
         self._callbacks_loop: asyncio.AbstractEventLoop | None = None
         self._mqtt_sub: mqtt.MQTTSubscriber | None = None
@@ -178,29 +135,26 @@ class TelegramAdapter(PlatformAdapter):
     def start(self) -> None:
         """Start the Telegram bot (long polling). Call once at startup."""
         if not self.bot_token:
-            logger.warning(
-                "[telegram] TELEGRAM_BOT_TOKEN not set — Telegram disabled", exc_info=True
-            )
+            logger.warning("[telegram] TELEGRAM_BOT_TOKEN not set — Telegram disabled")
             return
 
         async def _post_init(app: Application) -> None:
             # Called from inside the running event loop — the only safe place to
             # capture the loop and start the MQTT subscriber. run_polling() creates
             # its own loop via asyncio.run(), so capturing it before run_polling()
-            # gives a different (non-running) loop.
+            # gives a different (non-running) loop and run_coroutine_threadsafe blocks forever.
             self._callbacks_loop = asyncio.get_running_loop()
             self.start_subscriber()
 
         self._app = Application.builder().token(self.bot_token).post_init(_post_init).build()
 
-        self._app.add_handler(CommandHandler("historia", _historia_command))
-        self._app.add_handler(CommandHandler("start", _start_command))
+        # On-demand DM: any private text message
         self._app.add_handler(
-            CallbackQueryHandler(
-                _button_callback,
-                pattern="nh",
-            )
+            MessageHandler(filters.TEXT & filters.ChatType.PRIVATE & ~filters.COMMAND, _dm_story_handler)
         )
+        # Also reachable via /historia in any chat
+        self._app.add_handler(CommandHandler("historia", _dm_story_handler))
+        self._app.add_handler(CommandHandler("start", _start_command))
 
         self._app.run_polling(drop_pending_updates=True)
         logger.info("[telegram] Bot started")
@@ -214,102 +168,43 @@ class TelegramAdapter(PlatformAdapter):
     # ── PlatformAdapter interface ───────────────────────────────────────────
 
     async def post_channel(self, payload: StoryPayload) -> str:
-        """Post a headline + 'Read story' button to the configured Telegram channel."""
+        """Post the full simplified story to the configured Telegram channel."""
         assert self._app is not None, "post_channel() called before bot was started"
         assert self.channel_chat_id, "post_channel() requires TELEGRAM_CHANNEL_ID to be set"
 
-        keyboard = InlineKeyboardMarkup(
-            [[InlineKeyboardButton("📰 Leer historia completa", callback_data="nh")]]
-        )
-        msg = await self._app.bot.send_message(
-            chat_id=int(self.channel_chat_id),
-            text=payload.headline,
-            reply_markup=keyboard,
-        )
+        await _send_story_to(int(self.channel_chat_id), payload, self._app.bot)
         logger.info(
-            "[telegram] Posted headline to channel %s: %s",
+            "[telegram] Posted story to channel %s: %s",
             self.channel_chat_id,
             payload.headline[:60],
         )
-        return str(msg.message_id)
+        return "ok"
 
     async def create_thread(self, payload: StoryPayload, channel_msg_id: str) -> str | None:
-        """
-        Telegram forum channels support topics/threads.
-        Creates a new thread in the forum channel.
-        Returns the thread_id (topic_id in Telegram terms).
-        """
-        if not self._app or not self.channel_chat_id:
-            return None
-
-        try:
-            # Telegram forum topic ID (for forum channels, custom_id is the topic_id)
-            # We use the message_id as the thread identifier
-            msg = await self._app.bot.send_message(
-                chat_id=int(self.channel_chat_id),
-                text=f"🧵 *{payload.topic_title}*",
-                parse_mode="Markdown",
-                message_thread_id=int(channel_msg_id) if channel_msg_id.isdigit() else None,
-            )
-            return str(msg.message_id)
-        except Exception as e:
-            logger.warning("[telegram] create_thread failed: %s", e, exc_info=True)
-            return None
+        """Not used in the Telegram flow — Telegram doesn't use threads."""
+        return None
 
     async def post_thread(self, thread_id: str, payload: StoryPayload) -> None:
-        """Post the story content to the specified thread/DM."""
-        if not thread_id or not thread_id.isdigit():
-            return
-        chat_id = int(thread_id)
-        if self._app and self._app.bot:
-            await _send_story_to(chat_id, payload, self._app.bot)
+        """Not used in the Telegram flow."""
 
     async def add_reaction(self, channel_msg_id: str) -> None:
-        """React to the channel message with ✅ via Telegram reaction API."""
-        if not self._app or not self.channel_chat_id or not channel_msg_id.isdigit():
-            return
-        try:
-            await self._app.bot.set_message_reaction(
-                chat_id=int(self.channel_chat_id),
-                message_id=int(channel_msg_id),
-                reaction=[{"type": "emoji", "emoji": "✅"}],
-                is_big=True,
-            )
-        except Exception as e:
-            logger.warning("[telegram] add_reaction failed: %s", e, exc_info=True)
+        """Not used in the Telegram channel flow."""
 
     # ── Convenience ────────────────────────────────────────────────────────
 
     async def send_story(self, payload: StoryPayload) -> None:
-        """
-        Full Telegram flow:
-        1. Enqueue the full story to the shared file queue
-        2. Post headline + 'Read story' button to the channel
-        3. User clicks button → _button_callback pops from queue and DMs the full story
-        """
+        """Post the full story to the configured Telegram channel and mark it as sent."""
         assert self.channel_chat_id, (
             "send_story() requires TELEGRAM_CHANNEL_ID — set it in .env"
         )
-        import dataclasses
-
-        from ..queue import enqueue_story
-
-        enqueue_story(dataclasses.asdict(payload))
         await self.post_channel(payload)
         self.mark_sent(payload.url)
 
-    async def send_story_to_dm(self, user_id: int, payload: StoryPayload) -> None:
-        """Send a story directly to a user's DM."""
-        if not self._app:
-            logger.warning("[telegram] Bot not started — cannot send DM", exc_info=True)
-            return
-        await _send_story_to(user_id, payload, self._app.bot)
-
-    # ── Queue subscriber (pub/sub) ───────────────────────────────────────────
+    # ── MQTT subscriber ─────────────────────────────────────────────────────
 
     def start_subscriber(self) -> None:
         """
-        Subscribe to the bbc/stories MQTT topic and send stories as they arrive.
+        Subscribe to the bbc/stories MQTT topic and post stories to the channel as they arrive.
         Must be called from within the running event loop (via Application.post_init).
         """
         from ..adapters.base import StoryPayload
@@ -347,10 +242,10 @@ class TelegramAdapter(PlatformAdapter):
             self._mqtt_sub.stop()
 
     async def stop_bot(self) -> None:
-        """Stop the bot."""
+        """Stop the bot and MQTT subscriber."""
         self.stop_subscriber()
         if self._app:
             await self._app.stop()
             logger.info("[telegram] Bot stopped")
 
-    # ── Sent-stories tracking (inherited from PlatformAdapter) ────────────
+    # ── Sent-stories tracking (channel-level, inherited from PlatformAdapter) ──

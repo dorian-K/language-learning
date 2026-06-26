@@ -429,28 +429,93 @@ def test_telegram_adapter_uses_post_init_not_get_event_loop():
     )
 
 
-def test_telegram_post_channel_sends_button_not_full_article():
-    """post_channel() must send a headline + InlineKeyboard button, not the full article."""
+def test_telegram_post_channel_sends_full_story_not_button():
+    """post_channel() must send the full story directly to the channel (no button indirection)."""
     adapter_src = (
         Path(__file__).parent.parent / "src" / "bbc_noticias" / "adapters" / "telegram.py"
     ).read_text()
 
-    assert "InlineKeyboardMarkup" in adapter_src, (
-        "post_channel() must send an InlineKeyboardMarkup with a 'Nueva historia' button"
+    assert "_send_story_to" in adapter_src, (
+        "post_channel() must call _send_story_to() to send the full simplified story to the channel"
     )
-    assert 'callback_data="nh"' in adapter_src, (
-        "Button callback_data must be 'nh' to match the registered CallbackQueryHandler"
+    assert "InlineKeyboardMarkup" not in adapter_src, (
+        "Channel posts must not use InlineKeyboardMarkup — the channel flow sends the full article directly"
     )
 
 
-def test_telegram_send_story_enqueues_before_posting():
-    """send_story() must enqueue the story to the file queue before posting the headline."""
+def test_telegram_dm_uses_per_user_tracking():
+    """DM handler must call get_story_for_user() (per-user tracking), not get_story_payload()."""
     adapter_src = (
         Path(__file__).parent.parent / "src" / "bbc_noticias" / "adapters" / "telegram.py"
     ).read_text()
 
-    assert "enqueue_story" in adapter_src, (
-        "send_story() must call enqueue_story() so _button_callback can pop the full story on click"
+    assert "get_story_for_user" in adapter_src, (
+        "DM handler must call get_story_for_user() for per-user dedup, not get_story_payload() "
+        "which uses the shared channel tracking"
+    )
+
+
+def test_telegram_dm_handler_handles_any_private_message():
+    """Telegram bot must register a MessageHandler for private text messages."""
+    adapter_src = (
+        Path(__file__).parent.parent / "src" / "bbc_noticias" / "adapters" / "telegram.py"
+    ).read_text()
+
+    assert "MessageHandler" in adapter_src, (
+        "Bot must register a MessageHandler so any private message triggers a story, "
+        "not just the /historia command"
+    )
+    assert "ChatType.PRIVATE" in adapter_src, (
+        "MessageHandler must filter for ChatType.PRIVATE so group messages don't trigger DM stories"
+    )
+
+
+def test_dm_sent_module_exists():
+    """dm_sent.py must exist as a separate tracker from sent_stories.py."""
+    dm_sent_path = (
+        Path(__file__).parent.parent / "src" / "bbc_noticias" / "dm_sent.py"
+    )
+    assert dm_sent_path.exists(), (
+        "dm_sent.py must exist for per-user DM tracking, separate from "
+        "sent_stories.py (channel tracking)"
+    )
+
+
+def test_dm_sent_tracking_is_per_user():
+    """dm_sent.filter_unsent() must accept a user_id so each user has an independent history."""
+    import src.bbc_noticias.dm_sent as dm_sent_mod
+    import inspect
+
+    sig = inspect.signature(dm_sent_mod.filter_unsent)
+    params = list(sig.parameters.keys())
+    assert "user_id" in params, (
+        "dm_sent.filter_unsent() must take user_id so each Telegram user gets their own story history"
+    )
+
+
+def test_story_service_has_get_story_for_user():
+    """story_service must expose get_story_for_user() for per-user DM requests."""
+    svc_src = (
+        Path(__file__).parent.parent / "src" / "bbc_noticias" / "story_service.py"
+    ).read_text()
+
+    assert "get_story_for_user" in svc_src, (
+        "story_service.py must have get_story_for_user(user_id) for per-user DM tracking"
+    )
+    assert "dm_sent" in svc_src, (
+        "get_story_for_user() must use dm_sent (per-user tracker), not sent_stories (channel tracker)"
+    )
+
+
+def test_telegram_send_story_does_not_use_queue():
+    """send_story() must post directly to the channel without going through the file queue."""
+    adapter_src = (
+        Path(__file__).parent.parent / "src" / "bbc_noticias" / "adapters" / "telegram.py"
+    ).read_text()
+
+    assert "enqueue_story" not in adapter_src, (
+        "Telegram send_story() must NOT call enqueue_story() — the button/queue flow was removed. "
+        "Channel gets the full story directly; DM is handled independently via get_story_for_user()"
     )
 
 

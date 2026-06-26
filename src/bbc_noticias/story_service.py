@@ -125,7 +125,9 @@ async def simplify_story(story: dict) -> StoryPayload:
 
 async def get_story_payload(max_age_hours: int = 48) -> StoryPayload | None:
     """
-    Full pipeline: fetch → select → simplify → format.
+    Full pipeline for the daily channel cron: fetch → select → simplify → format.
+    Uses channel-level sent tracking (sent_stories.py) so the same story is never
+    posted to the channel twice.
     Returns a StoryPayload or None if no suitable story found.
     """
     llm = LLM()
@@ -136,7 +138,7 @@ async def get_story_payload(max_age_hours: int = 48) -> StoryPayload | None:
         logger.warning("[story_service] No stories found in RSS feeds.", exc_info=True)
         return None
 
-    # 2. Filter already-sent stories
+    # 2. Filter already-sent stories (channel-level dedup)
     unsent_links = set(filter_unsent([s["link"] for s in stories]))
     stories = [s for s in stories if s["link"] in unsent_links]
     if not stories:
@@ -153,3 +155,40 @@ async def get_story_payload(max_age_hours: int = 48) -> StoryPayload | None:
 
     # 4. Simplify and format
     return await simplify_story(best)
+
+
+async def get_story_for_user(user_id: int, max_age_hours: int = 168) -> StoryPayload | None:
+    """
+    On-demand pipeline for DM requests: fetch → select → simplify → format.
+    Uses per-user sent tracking (dm_sent.py) so each user gets a different story
+    on every request, independent of the channel feed.
+
+    Uses a wider look-back window (7 days default) to give a larger story pool
+    for on-demand use.
+    """
+    from . import dm_sent
+
+    llm = LLM()
+
+    stories = await asyncio.get_event_loop().run_in_executor(None, fetch_stories, max_age_hours)
+    if not stories:
+        logger.warning("[story_service] No stories found for user %s.", user_id)
+        return None
+
+    unsent_links = set(dm_sent.filter_unsent(user_id, [s["link"] for s in stories]))
+    stories = [s for s in stories if s["link"] in unsent_links]
+    if not stories:
+        logger.info("[story_service] All stories already sent to user %s.", user_id)
+        return None
+
+    best = await _select_best_story(stories, llm)
+    if not best:
+        logger.warning("[story_service] Could not select story for user %s.", user_id)
+        return None
+
+    logger.info("[story_service] Selected for user %s: %s", user_id, best["title"])
+
+    payload = await simplify_story(best)
+    # Mark as sent immediately on selection so concurrent requests don't pick the same story
+    dm_sent.mark_sent(user_id, payload.url)
+    return payload
