@@ -47,8 +47,8 @@ def _md_to_html(text: str) -> str:
     text = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", text)
     # *italic* (single asterisk, not part of **)
     text = re.sub(r"(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)", r"<i>\1</i>", text)
-    # ||spoiler|| → Telegram spoiler tag
-    text = re.sub(r"\|\|([^|]+)\|\|", r"<tg-spoiler>\1</tg-spoiler>", text)
+    # ||spoiler|| → Telegram spoiler tag; brackets stay visible on reveal
+    text = re.sub(r"\|\|([^|]+)\|\|", r"<tg-spoiler>(\1)</tg-spoiler>", text)
     return text
 
 
