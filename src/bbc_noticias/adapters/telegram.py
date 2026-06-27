@@ -40,7 +40,7 @@ SPOILER_RE = re.compile(r"\|\|([^|]+)\|\|")
 
 def _build_story_text(payload: StoryPayload) -> str:
     """Format a story as a readable Telegram message."""
-    return f"📰 *{payload.headline}*\n\n{payload.summary}\n\n{payload.text}\n\n{payload.bullets}\n\n🔗 {payload.url}"
+    return f"📰 *{payload.headline}*\n\n{payload.text}\n\n{payload.bullets}\n\n🔗 {payload.url}"
 
 
 async def _send_story_to(chat_id: int, payload: StoryPayload, bot: Bot) -> None:
