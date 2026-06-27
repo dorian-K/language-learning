@@ -4,9 +4,7 @@ Calls OpenRouter with SIMPLIFY_PROMPT: simplifies sentence structures
 and adds English translations for difficult words.
 """
 
-import json
 import logging
-import re
 
 from .llm import LLM
 from .prompts import DORIAN_PROFILE, SIMPLIFY_PROMPT, VOCAB_HARD_LIST
@@ -42,21 +40,9 @@ def simplify(article_dict: dict, llm: LLM) -> dict:
         "[simplifier] max_tokens=%s for article text len=%s", computed_max_tokens, len(article_text)
     )
 
-    raw = llm.complete(
-        system=(
-            "You are a Spanish language tutor. Always respond with ONLY valid JSON "
-            "matching the required schema. Never add explanations, preambles, "
-            "or anything outside the JSON object."
-        ),
+    return llm.complete_json(
+        system="You are a Spanish language tutor. Respond with JSON matching the required schema.",
         user=prompt,
         temperature=0.6,
         max_tokens=computed_max_tokens,
     )
-
-    # Strip markdown code fences if present
-    raw = re.sub(r"```(?:json)?\s*", "", raw).strip()
-    try:
-        return json.loads(raw)
-    except json.JSONDecodeError as e:
-        logger.error("[simplifier] LLM output was not valid JSON: %s\nRaw: %s", e, raw[:500])
-        raise

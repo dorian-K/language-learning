@@ -80,7 +80,8 @@ def fetch_stories(max_age_hours: int = 24, limit: int | None = None) -> list[dic
 
                 pub_date = parse_rss_datetime(pub_date_str)
                 if pub_date is None:
-                    logger.warning("Pub date could not be parsed: %s", pub_date_str, exc_info=True)
+                    if pub_date_str:
+                        logger.warning("Pub date could not be parsed: %s", pub_date_str)
                     continue
 
                 # Filter by age

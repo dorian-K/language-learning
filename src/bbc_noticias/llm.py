@@ -65,16 +65,24 @@ class LLM:
             raise TypeError(f"LLM returned {type(content).__name__}, expected str")
         return content.strip()
 
-    def complete_json(self, system: str, user: str, temperature: float = 0.3) -> dict:
-        """Same as complete() but parses the response as JSON."""
+    def complete_json(
+        self, system: str, user: str, temperature: float = 0.3, max_tokens: int = 4000
+    ) -> dict:
+        """Send a chat completion with JSON mode enforced, return parsed dict."""
         import json
-        import re
 
-        text = self.complete(system, user, temperature)
-        # Strip markdown code fences if present
-        text = re.sub(r"```(?:json)?\s*", "", text).strip()
-        try:
-            return json.loads(text)
-        except json.JSONDecodeError as e:
-            logger.error("[llm] LLM output was not valid JSON: %s\nRaw: %s", e, text[:500])
-            raise
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            temperature=temperature,
+            max_tokens=max_tokens,
+            response_format={"type": "json_object"},
+            timeout=httpx.Timeout(120.0),
+        )
+        content = response.choices[0].message.content
+        if content is None:
+            raise TypeError("LLM returned None content in JSON mode")
+        return json.loads(content)

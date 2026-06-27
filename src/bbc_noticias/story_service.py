@@ -25,13 +25,9 @@ def _call_simplify(article_dict: dict, llm: LLM) -> dict | None:
     """
     try:
         return simplify(article_dict, llm)
-    except TypeError as e:
-        if "None" in str(e):
-            logger.warning(
-                "[simplifier] LLM returned None on simplify, will retry: %s", e, exc_info=True
-            )
-            return None
-        raise
+    except (TypeError, ValueError) as e:
+        logger.warning("[simplifier] LLM output unusable, will retry: %s", e)
+        return None
 
 
 def _format_headline(story: dict) -> str:
