@@ -5,6 +5,8 @@
 
 PATH=/usr/local/bin:/usr/bin:/bin
 SHARED_QUEUE_PATH=/app/shared/queue.json
+MQTT_BROKER_HOST=mosquitto
+MQTT_PORT=1883
 
 # at 8am every day
 0 8 * * * root cd /app && /app/.venv/bin/python -m src.bbc_noticias.cron publish >> /app/cron.log 2>&1

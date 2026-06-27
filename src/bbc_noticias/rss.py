@@ -74,6 +74,10 @@ def fetch_stories(max_age_hours: int = 24, limit: int | None = None) -> list[dic
                 if not title or not link:
                     continue
 
+                # BBC Mundo RSS items link to bbc.co.uk, which returns 403 on article scraping.
+                # Rewrite to bbc.com so the scraper can fetch the article.
+                link = link.replace("www.bbc.co.uk/", "www.bbc.com/")
+
                 pub_date = parse_rss_datetime(pub_date_str)
                 if pub_date is None:
                     logger.warning("Pub date could not be parsed: %s", pub_date_str, exc_info=True)

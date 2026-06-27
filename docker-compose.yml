@@ -3,8 +3,6 @@ services:
     image: eclipse-mosquitto:2
     container_name: bbc-mosquitto
     restart: unless-stopped
-    ports:
-      - "1883:1883"
     volumes:
       - ./mosquitto/config:/mosquitto/config:ro
       - ./mosquitto/data:/mosquitto/data
