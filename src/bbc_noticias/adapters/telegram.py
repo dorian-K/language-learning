@@ -18,6 +18,7 @@ Environment variables:
 """
 
 import asyncio
+import html
 import logging
 import re
 
@@ -35,26 +36,47 @@ from .base import PlatformAdapter, StoryPayload
 
 logger = logging.getLogger(__name__)
 
-SPOILER_RE = re.compile(r"\|\|([^|]+)\|\|")
+
+def _md_to_html(text: str) -> str:
+    """Convert the Markdown subset produced by the LLM to Telegram HTML."""
+    # Escape HTML entities first so article text can't inject tags
+    text = html.escape(text)
+    # ### / ## / # headings → bold
+    text = re.sub(r"^#{1,6}\s*(.+)$", r"<b>\1</b>", text, flags=re.MULTILINE)
+    # **bold**
+    text = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", text)
+    # *italic* (single asterisk, not part of **)
+    text = re.sub(r"(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)", r"<i>\1</i>", text)
+    # ||spoiler|| → Telegram spoiler tag
+    text = re.sub(r"\|\|([^|]+)\|\|", r"<tg-spoiler>\1</tg-spoiler>", text)
+    return text
 
 
 def _build_story_text(payload: StoryPayload) -> str:
     """Format a story as a readable Telegram message."""
-    return f"📰 *{payload.headline}*\n\n{payload.text}\n\n{payload.bullets}\n\n🔗 {payload.url}"
+    return f"{payload.headline}\n\n{payload.text}\n\n{payload.bullets}\n\n🔗 {payload.url}"
 
 
 async def _send_story_to(chat_id: int, payload: StoryPayload, bot: Bot) -> None:
     """Send a formatted story to the given chat, splitting at 4096 chars if needed."""
-    text = _build_story_text(payload)
-    # Telegram MessageEntity.SPOILER cannot mix with plain text in a single message,
-    # so strip ||word|| markers to plain (word) instead.
-    clean = SPOILER_RE.sub(r"(\1)", text)
+    text = _md_to_html(_build_story_text(payload))
     max_len = 4096
-    if len(clean) <= max_len:
-        await bot.send_message(chat_id=chat_id, text=clean, disable_web_page_preview=True)
+    if len(text) <= max_len:
+        await bot.send_message(
+            chat_id=chat_id, text=text, parse_mode="HTML", disable_web_page_preview=True
+        )
     else:
-        for i in range(0, len(clean), max_len):
-            await bot.send_message(chat_id=chat_id, text=clean[i : i + max_len])
+        # Split on double newlines to avoid breaking in the middle of a paragraph
+        paragraphs = text.split("\n\n")
+        chunk = ""
+        for para in paragraphs:
+            if len(chunk) + len(para) + 2 > max_len:
+                await bot.send_message(chat_id=chat_id, text=chunk, parse_mode="HTML")
+                chunk = para
+            else:
+                chunk = f"{chunk}\n\n{para}" if chunk else para
+        if chunk:
+            await bot.send_message(chat_id=chat_id, text=chunk, parse_mode="HTML")
 
 
 # ── Handlers ─────────────────────────────────────────────────────────────────

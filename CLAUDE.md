@@ -104,3 +104,15 @@ The channel posts the full simplified article via `_send_story_to()`. An earlier
 ### Discord/Telegram env vars — not `DISCORD_WEBHOOK_URL`
 
 The cron flow uses bot tokens, not webhook URLs. Required: `DISCORD_BOT_TOKEN` + `DISCORD_STORIES_CHANNEL_ID` for Discord; `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHANNEL_ID` for Telegram. `DISCORD_WEBHOOK_URL` is legacy (used only by the unused `bot.py` one-shot script).
+
+### Cron jobs don't inherit the container's environment — set MQTT vars in the crontab
+
+Docker Compose `environment:` values (e.g. `MQTT_BROKER_HOST=mosquitto`, `MQTT_PORT=1883`) are only available to PID 1, not to child processes spawned by the cron daemon. `mqtt.py` reads `MQTT_BROKER_HOST` at module-import time (module-level constant), so `load_dotenv()` is too late to help. The fix is to declare them as env vars directly in the `crontab` file. Do not rely on `docker-compose.yml` `environment:` for anything the cron job needs.
+
+### Mosquitto must not publish port 1883 to the host
+
+The `mosquitto` service uses `allow_anonymous true` with no auth. Never add `ports: "1883:1883"` to its `docker-compose.yml` entry — the other containers reach it via the internal Docker network using the `mosquitto` hostname, so no host-side port is needed. Exposing it makes the broker writable by anyone on the internet.
+
+### Simplifier uses `llm.complete_json()` with JSON mode — do not switch back to `complete()`
+
+The LLM (via `openrouter/auto`) would return multi-line bullet strings with literal newline characters inside JSON string values, producing invalid JSON. The fix is `response_format={"type": "json_object"}` enforced in `LLM.complete_json()`. The simplifier calls `complete_json()` directly and does no JSON parsing of its own. Do not revert to `llm.complete()` + manual `json.loads()`.
