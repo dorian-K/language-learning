@@ -6,12 +6,11 @@ American — that's exactly why the deck normally voice-clones Castilian referen
 But some built-in speakers lean more Castilian than others, so this renders the SAME line for
 every built-in speaker, letting you pick the ones that actually sound peninsular.
 
-The line is deliberately loaded with the sounds that separate Castilian from Latin American
-Spanish, so the difference is audible per speaker:
-  - /θ/ ("th"): the c-before-e/i and z in  ejerCICios, leCCión, Zumo, CINco, cervEZas,
-    plaZa, dieZ, haCEmos, graCIas   → Spain = "th", Latin America = "s".
-  - vosotros + -áis/-éis endings:  "Vosotros habéis", "queréis"  → used in Spain, not LatAm.
-  - the raspy jota /x/:  eJercicios, coJo, Gimnasia  → Spain = harsh guttural, LatAm = soft /h/.
+The line is short (long inputs degrade XTTS) but loaded with only the sounds that separate
+Castilian from Latin American Spanish, so the difference is audible per speaker:
+  - /θ/ ("th"): the c-before-e/i and z in  CINco, cervEZas, Zumo  → Spain = "th", LatAm = "s".
+  - vosotros + -éis ending:  "Vosotros cogéis"  → used in Spain, not Latin America.
+  - the raspy jota /x/:  coGéis  → Spain = harsh guttural, LatAm = soft /h/.
 
 Needs a GPU / large box — run on the cluster:
     sbatch slurm/generate_speaker_audition.slurm
@@ -22,11 +21,7 @@ from __future__ import annotations
 
 import os
 
-PROMPT = (
-    "Vale, chicos. ¿Vosotros habéis hecho ya los ejercicios de la lección? "
-    "Si queréis, cojo el coche y en la plaza compramos un zumo, cinco cervezas "
-    "y algo de cenar. A las diez hacemos gimnasia. Gracias."
-)
+PROMPT = "Vosotros cogéis cinco cervezas y un zumo."
 OUT_DIR = "speaker_audition"
 
 
