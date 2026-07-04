@@ -197,7 +197,9 @@ _KOKORO_RELEASE = "https://github.com/thewh1teagle/kokoro-onnx/releases/download
 def _ensure_kokoro_file(filename: str) -> str:
     import urllib.request
 
-    cache = os.path.join(os.path.expanduser("~"), ".cache", "kokoro-onnx")
+    # Honor XDG_CACHE_HOME so HPC jobs can redirect big model files off the home quota.
+    cache_root = os.environ.get("XDG_CACHE_HOME") or os.path.join(os.path.expanduser("~"), ".cache")
+    cache = os.path.join(cache_root, "kokoro-onnx")
     os.makedirs(cache, exist_ok=True)
     path = os.path.join(cache, filename)
     if not os.path.exists(path):
