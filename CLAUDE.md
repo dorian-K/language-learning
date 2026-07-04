@@ -54,18 +54,35 @@ Key modules:
 
 ### Anki Deck Pipeline (`src/`)
 
-Sequential one-shot scripts; each reads/writes JSON files and `.apkg` files:
+Sequential one-shot scripts that read/write JSON and `.apkg` files. Vocabulary reaches the
+deck-builder via **two parallel input tracks** that both funnel through the shared
+`process_note()` / LLM-enrichment step in `extract_from_anki.py` and land in `anki/lt/`:
 
-1. `transcribe_folder.py` — transcribes audio with WhisperX (needs GPU + HF token).
+**Track A — Language Transfer transcripts:**
+1. `transcribe_folder.py` — transcribes audio with WhisperX (needs GPU + HF token) → `transcriptions/lt/`.
 2. `extract_vocab_from_transcripts.py` — LLM extracts vocabulary from transcripts → `vocab/lt/`.
-3. `extract_from_anki.py` — parses an existing `.apkg` via SQLite and exports notes to JSON.
-4. `make_anki_deck.py` — reads `anki/lt/` (vocab) and `anki/irregular_verbs/` (conjugations), builds level-organised decks (`Lt::levelA1` … `Lt::levelB2`, `Lt::Conjugations`), exports `.apkg`.
-5. `generate_verb_conjugations.py` — LLM generates 36 verbs × 9 tenses × 6 persons × 2 directions of conjugation cards.
-6. `export_anki_snapshot.py` — reverse export: manually-edited `.apkg` → JSON for re-ingestion.
+3. `extract_from_transcrib_vocab.py` — enriches `vocab/lt/` → `anki/lt/` (prompt: `extract_from_vocab_repackage_prompt.txt`). **This is the step that actually feeds `make_anki_deck.py`; don't overlook it.**
 
-`src/llm.py` (top-level) is the shared LLM client for the Anki scripts; distinct from `src/bbc_noticias/llm.py`.
+**Track B — an existing `.apkg`:**
+3. `extract_from_anki.py` — parses an existing `.apkg` via SQLite, LLM-enriches notes (translations, example sentences, CEFR levels, German), exports JSON. Home of `process_note()` / `b64_encode()` reused by Track A.
 
-LLM prompts are in `.txt` files alongside the scripts (`vocab_extract_prompt.txt`, `verb_conjugation_prompt.txt`, `extract_from_anki_repackage_prompt.txt`, etc.).
+**Shared back half:**
+4. `generate_verb_conjugations.py` — LLM generates 36 verbs × 9 tenses × 6 persons × 2 directions → `anki/irregular_verbs/` (prompt: `verb_conjugation_prompt.txt`).
+5. `generate_numbers.py` — **deterministic, no LLM.** Emits a curated set of Spanish numbers (building blocks + composition + gender/apocope + real-world + ordinals), two cards each (numeral ⇄ Spanish), → `anki/numbers/`. Spelling comes from `spanish_numbers.py`, which wraps `num2words(lang="es")` and fixes its apocope bug (`veintiuno mil` → `veintiún mil`). Tested in `tests/test_spanish_numbers.py`. Numbers are algorithmic, so an LLM would only add spelling errors.
+5b. `generate_number_audio.py` + `tts.py` — **local/offline TTS for the Numbers deck only** (peninsular es-ES). Synthesizes one clip per unique `spanish` string into `anki/numbers/media/` (idempotent — skips clips already present). Three backends via `TTS_BACKEND`: `piper` (default, CPU, native `es_ES` voices — safest Spain timbre), `kokoro` (Kokoro-82M via onnxruntime, CPU, more natural, Castilian espeak-ng g2p), and `xtts` (Coqui XTTS-v2, highest realism, for the H100 cluster — see `slurm/generate_number_audio.slurm`). Weights download once (HuggingFace for piper/xtts, a GitHub release for kokoro), then fully offline. `tts.py` names files by a **deterministic content hash** (`audio_stem`), backend-agnostic, so cluster-generated audio and the local deck build agree without a manifest; it matches `.mp3` (ffmpeg present) or `.wav` (fallback). Because names aren't backend-tagged, **switching backend means clearing `anki/numbers/media/` first**. Deps are the optional `tts` extra (`uv sync --extra tts`), kept out of default runtime deps. Tested in `tests/test_tts.py`.
+6. `make_anki_deck.py` — reads `anki/lt/` (vocab) + `anki/irregular_verbs/` (conjugations) + `anki/numbers/`, builds level-organised decks (`Lt::levelA1` … `Lt::levelB2`, `Lt::Conjugations`, `Lt::Numbers`), exports `.apkg`. Three model types dispatched by `model_type` (`vocab`/`conjugation`/`numbers`); a new deck kind needs a new model + a `process_*_card` + an `INPUT_CONFIGS` entry + a dedup-key branch. **Numbers audio:** if a clip exists in `anki/numbers/media/`, `process_numbers_card` appends `[sound:…]` to the Spanish-bearing field only (autoplays Duolingo-style — on flip for `numeral_to_es`, on show for `es_to_numeral`); `NUMBERS_MEDIA_FILES` is passed as `media_files` **only** to the Numbers package. No audio present ⇒ deck builds silently, unchanged.
+7. `export_anki_snapshot.py` / `sync_anki_changes.py` — reverse export: manually-edited `.apkg` → JSON, to fold hand edits back into the source files.
+
+Utility scripts: `calc_anki_json_stats.py` (CEFR-level distribution of a vocab JSON dir) and
+`make_cheatsheet_from_transcriptions.py` (LLM cheatsheet from `transcriptions/lt/`).
+
+`src/llm.py` (top-level) is the shared LLM client for the Anki scripts; distinct from
+`src/bbc_noticias/llm.py`. Unlike the `bbc_noticias` package, these scripts use **top-level
+imports** (`from llm import ...`, `from extract_from_anki import ...`), so run them as
+`python src/make_anki_deck.py` from the repo root (which puts `src/` on `sys.path`) — **not**
+`python -m src.make_anki_deck`, which breaks those imports.
+
+LLM prompts are in `.txt` files alongside the scripts (`vocab_extract_prompt.txt`, `verb_conjugation_prompt.txt`, `extract_from_anki_repackage_prompt.txt`, `extract_from_vocab_repackage_prompt.txt`, etc.).
 
 ## Environment
 

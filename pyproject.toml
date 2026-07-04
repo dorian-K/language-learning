@@ -8,6 +8,7 @@ dependencies = [
     "better-exchook>=1.20260303.161200",
     "discord.py>=2.5.0",
     "genanki>=0.13.0",
+    "num2words>=0.5.14",
     "openai>=2.30.0",
     "paho-mqtt>=2.0",
     "python-dotenv>=1.2.2",
@@ -20,6 +21,17 @@ dev = [
     "pytest>=8.0.0",
     "ruff>=0.9.0",
     "pyright>=1.1.0",
+]
+# Local/offline TTS for the Numbers deck audio (see src/tts.py). Kept out of the default
+# runtime deps so the bots and deck build stay lightweight — install with:
+#   uv sync --extra tts        (Piper, CPU — works anywhere)
+# The cluster/H100 XTTS route also needs torch with CUDA (from the cluster's modules or
+# coqui-tts's own resolution); see slurm/generate_number_audio.slurm.
+tts = [
+    "piper-tts>=1.2.0",
+    "kokoro-onnx>=0.4.0",
+    "coqui-tts>=0.24.0",
+    "huggingface-hub>=0.23.0",
 ]
 
 [tool.ruff]
