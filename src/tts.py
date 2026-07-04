@@ -31,6 +31,10 @@ Heavy backend libraries are imported lazily inside the synth functions and are d
 optional ``tts`` dependency group (``uv sync --extra tts``).
 """
 
+# Keep annotations lazy so ``str | None`` etc. don't get evaluated at runtime — some HPC
+# clusters still default to Python 3.9, where PEP 604 unions raise TypeError on import.
+from __future__ import annotations
+
 import hashlib
 import os
 import shutil

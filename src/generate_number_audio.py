@@ -15,6 +15,8 @@ CPU. For the H100 route use ``slurm/generate_number_audio.slurm`` (``TTS_BACKEND
 Run from the repo root (top-level import style):  ``python src/generate_number_audio.py``
 """
 
+from __future__ import annotations  # Python 3.9 (some HPC clusters) — keep annotations lazy
+
 import argparse
 import json
 import os
