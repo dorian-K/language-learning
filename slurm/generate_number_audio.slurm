@@ -17,35 +17,31 @@
 # Idempotent: clips already in anki/numbers/media/ are skipped, so re-submitting is safe.
 # =============================================================================
 #SBATCH --job-name=es-numbers-tts
-#SBATCH --gres=gpu:h100:1
+#SBATCH --partition=c23g          # RWTH CLAIX-2023 H100 partition (name it explicitly)
+#SBATCH --gres=gpu:1             # one GPU; on c23g that is an H100 (no h100 type qualifier)
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=32G
 #SBATCH --time=00:30:00
 #SBATCH --output=slurm-%j.out
-### TODO: set these for your cluster ###
+### TODO: RWTH usually requires a project account — set yours (e.g. from `r_wlm_usage`): ###
 ###SBATCH --account=CHANGE_ME
-###SBATCH --partition=CHANGE_ME
 
 set -euo pipefail
 
 # --- Environment ------------------------------------------------------------
-# Adjust to your cluster's conventions. XTTS needs PyTorch with CUDA; prefer the
-# cluster's module system if it provides torch, otherwise let uv/pip resolve it.
-# module load cuda/12.4 python/3.11        # <- example; uncomment/edit for your site
-
-# Install deps (Piper + Coqui XTTS) into the project venv. `uv` is recommended:
-uv sync --extra tts
+# Sets up $PY (uv if available, else a stdlib venv + pip fallback). See slurm/setup_env.sh.
+source slurm/setup_env.sh
 
 # --- Run --------------------------------------------------------------------
 # anki/numbers/ is gitignored, so a fresh clone has no phrase list yet. Regenerate the
 # number cards first — deterministic, no GPU/network (num2words). Cheap and idempotent.
-uv run python src/generate_numbers.py
+$PY src/generate_numbers.py
 
 export TTS_BACKEND=xtts
 export COQUI_TOS_AGREED=1                 # accept the Coqui XTTS license non-interactively
 # export TTS_REF_WAV="$PWD/ref.wav"       # <- uncomment to voice-clone a Castilian reference
 # export TTS_SPEAKER="Ana Florence"       # built-in XTTS speaker used when no ref wav is set
 
-uv run python src/generate_number_audio.py
+$PY src/generate_number_audio.py
 
 echo "Audio written to anki/numbers/media/ — rsync it back and run make_anki_deck.py locally."

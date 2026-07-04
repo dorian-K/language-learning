@@ -18,22 +18,22 @@
 #      (TTS_REF_WAV / TTS_SPEAKER), `rm anki/numbers/media/*`, and re-run this smoke test.
 # =============================================================================
 #SBATCH --job-name=es-numbers-tts-smoke
-#SBATCH --gres=gpu:h100:1
+#SBATCH --partition=c23g          # RWTH CLAIX-2023 H100 partition (name it explicitly)
+#SBATCH --gres=gpu:1             # one GPU; on c23g that is an H100 (no h100 type qualifier)
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=32G
 #SBATCH --time=00:10:00
 #SBATCH --output=slurm-smoke-%j.out
-### TODO: set these for your cluster ###
+### TODO: RWTH usually requires a project account — set yours (e.g. from `r_wlm_usage`): ###
 ###SBATCH --account=CHANGE_ME
-###SBATCH --partition=CHANGE_ME
 
 set -euo pipefail
 
-# module load cuda/12.4 python/3.11        # <- example; uncomment/edit for your site
-uv sync --extra tts
+# Sets up $PY (uv if available, else a venv+pip fallback). See slurm/setup_env.sh.
+source slurm/setup_env.sh
 
 # Deterministic card JSON (gitignored, so absent on a fresh clone). No GPU/network.
-uv run python src/generate_numbers.py
+$PY src/generate_numbers.py
 
 export TTS_BACKEND=xtts
 export COQUI_TOS_AGREED=1
@@ -41,6 +41,6 @@ export COQUI_TOS_AGREED=1
 # export TTS_SPEAKER="Ana Florence"        # built-in XTTS speaker used when no ref wav is set
 
 # Just a varied handful of phrases to prove the pipeline + voice.
-uv run python src/generate_number_audio.py --limit 5
+$PY src/generate_number_audio.py --limit 5
 
 echo "SMOKE done. rsync anki/numbers/media/ back and listen before the full run."
