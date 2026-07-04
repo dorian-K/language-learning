@@ -16,8 +16,8 @@ Voice variety: each backend takes a comma-separated voice list (``TTS_PIPER_VOIC
 deck has varied speakers while staying idempotent. Kokoro rotates 3 Spanish voices by default
 (all in its one model file); Piper defaults to a single voice (extra voices = extra downloads).
 
-Leading silence: ``TTS_LEAD_SILENCE_MS`` (default 150) pads the start of every clip so audio
-doesn't begin abruptly on autoplay.
+Leading silence: ``TTS_LEAD_SILENCE_MS`` (default 0) optionally pads the start of every clip.
+Set it to a positive value if autoplay clips feel like they begin too abruptly; 0 = no padding.
 
 Switching backends/voices: filenames are content-based (not backend/voice-tagged), so to
 re-voice, clear ``anki/numbers/media/`` first (otherwise existing clips are kept).
@@ -298,7 +298,7 @@ def synthesize(text: str, media_dir: str) -> str:
     with tempfile.TemporaryDirectory() as td:
         wav = os.path.join(td, stem + ".wav")
         _BACKENDS[backend](text, wav)
-        _prepend_silence(wav, int(os.getenv("TTS_LEAD_SILENCE_MS", "150")))
+        _prepend_silence(wav, int(os.getenv("TTS_LEAD_SILENCE_MS", "0")))
         if _have_ffmpeg():
             out = os.path.join(media_dir, stem + ".mp3")
             _to_mp3(wav, out)
