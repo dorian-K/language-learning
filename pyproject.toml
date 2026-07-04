@@ -23,10 +23,16 @@ dev = [
     "pyright>=1.1.0",
 ]
 # Local/offline TTS for the Numbers deck audio (see src/tts.py). Kept out of the default
-# runtime deps so the bots and deck build stay lightweight — install with:
-#   uv sync --extra tts        (Piper, CPU — works anywhere)
-# The cluster/H100 XTTS route also needs torch with CUDA (from the cluster's modules or
-# coqui-tts's own resolution); see slurm/generate_number_audio.slurm.
+# runtime deps so the bots and deck build stay lightweight. Split per backend because they
+# have incompatible onnxruntime pins (piper vs kokoro) and only some environments have
+# onnxruntime wheels at all — install just the one you use:
+#   uv sync --extra tts-piper     # Piper, CPU  (onnxruntime)
+#   uv sync --extra tts-kokoro    # Kokoro, CPU (onnxruntime, newer)
+#   uv sync --extra tts-xtts      # XTTS, GPU   (torch, NO onnxruntime — best for the cluster)
+# `tts` installs all three for local convenience (needs onnxruntime wheels for your Python).
+tts-piper = ["piper-tts>=1.2.0", "huggingface-hub>=0.23.0"]
+tts-kokoro = ["kokoro-onnx>=0.4.0", "huggingface-hub>=0.23.0"]
+tts-xtts = ["coqui-tts>=0.24.0", "huggingface-hub>=0.23.0"]
 tts = [
     "piper-tts>=1.2.0",
     "kokoro-onnx>=0.4.0",

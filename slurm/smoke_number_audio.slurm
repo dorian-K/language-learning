@@ -29,16 +29,17 @@
 
 set -euo pipefail
 
+# Backend must be set BEFORE setup_env (it installs only this backend's deps).
+export TTS_BACKEND=xtts
+export COQUI_TOS_AGREED=1
+# export TTS_REF_WAV="$PWD/ref.wav"        # <- Castilian reference clip for the best accent
+# export TTS_SPEAKER="Ana Florence"        # built-in XTTS speaker used when no ref wav is set
+
 # Sets up $PY (uv if available, else a venv+pip fallback). See slurm/setup_env.sh.
 source slurm/setup_env.sh
 
 # Deterministic card JSON (gitignored, so absent on a fresh clone). No GPU/network.
 $PY src/generate_numbers.py
-
-export TTS_BACKEND=xtts
-export COQUI_TOS_AGREED=1
-# export TTS_REF_WAV="$PWD/ref.wav"        # <- Castilian reference clip for the best accent
-# export TTS_SPEAKER="Ana Florence"        # built-in XTTS speaker used when no ref wav is set
 
 # Just a varied handful of phrases to prove the pipeline + voice.
 $PY src/generate_number_audio.py --limit 5

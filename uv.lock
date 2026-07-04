@@ -1392,19 +1392,37 @@ tts = [
     { name = "kokoro-onnx" },
     { name = "piper-tts" },
 ]
+tts-kokoro = [
+    { name = "huggingface-hub" },
+    { name = "kokoro-onnx" },
+]
+tts-piper = [
+    { name = "huggingface-hub" },
+    { name = "piper-tts" },
+]
+tts-xtts = [
+    { name = "coqui-tts" },
+    { name = "huggingface-hub" },
+]
 
 [package.metadata]
 requires-dist = [
     { name = "better-exchook", specifier = ">=1.20260303.161200" },
     { name = "coqui-tts", marker = "extra == 'tts'", specifier = ">=0.24.0" },
+    { name = "coqui-tts", marker = "extra == 'tts-xtts'", specifier = ">=0.24.0" },
     { name = "discord-py", specifier = ">=2.5.0" },
     { name = "genanki", specifier = ">=0.13.0" },
     { name = "huggingface-hub", marker = "extra == 'tts'", specifier = ">=0.23.0" },
+    { name = "huggingface-hub", marker = "extra == 'tts-kokoro'", specifier = ">=0.23.0" },
+    { name = "huggingface-hub", marker = "extra == 'tts-piper'", specifier = ">=0.23.0" },
+    { name = "huggingface-hub", marker = "extra == 'tts-xtts'", specifier = ">=0.23.0" },
     { name = "kokoro-onnx", marker = "extra == 'tts'", specifier = ">=0.4.0" },
+    { name = "kokoro-onnx", marker = "extra == 'tts-kokoro'", specifier = ">=0.4.0" },
     { name = "num2words", specifier = ">=0.5.14" },
     { name = "openai", specifier = ">=2.30.0" },
     { name = "paho-mqtt", specifier = ">=2.0" },
     { name = "piper-tts", marker = "extra == 'tts'", specifier = ">=1.2.0" },
+    { name = "piper-tts", marker = "extra == 'tts-piper'", specifier = ">=1.2.0" },
     { name = "pyright", marker = "extra == 'dev'", specifier = ">=1.1.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0.0" },
     { name = "python-dotenv", specifier = ">=1.2.2" },
@@ -1412,7 +1430,7 @@ requires-dist = [
     { name = "requests", specifier = ">=2.31.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.9.0" },
 ]
-provides-extras = ["dev", "tts"]
+provides-extras = ["dev", "tts-piper", "tts-kokoro", "tts-xtts", "tts"]
 
 [[package]]
 name = "language-tags"
