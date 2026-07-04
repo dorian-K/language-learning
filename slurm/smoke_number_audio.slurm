@@ -32,8 +32,17 @@ set -euo pipefail
 # Backend must be set BEFORE setup_env (it installs only this backend's deps).
 export TTS_BACKEND=xtts
 export COQUI_TOS_AGREED=1
-# export TTS_REF_WAV="$PWD/ref.wav"        # <- Castilian reference clip for the best accent
-# export TTS_SPEAKER="Ana Florence"        # built-in XTTS speaker used when no ref wav is set
+
+# PENINSULAR ACCENT: XTTS clones the accent from reference clips. Put several clean, single-speaker
+# Castilian .wav clips (~6-15s each) in ref/ (rsync them up first) — XTTS rotates them per phrase
+# for a Spain accent WITH voice variety. Without clips it would use built-in speakers (neutral/
+# Latin accent), so we hard-fail here instead of silently producing the wrong accent.
+export TTS_REF_DIR="$PWD/ref"
+if ! ls "$TTS_REF_DIR"/*.wav >/dev/null 2>&1; then
+    echo "ERROR: no .wav reference clips in $TTS_REF_DIR — peninsular accent requires them." >&2
+    echo "       rsync your Castilian clips there first, e.g. rsync -av ./ref/ <cluster>:<repo>/ref/" >&2
+    exit 1
+fi
 
 # Sets up $PY (uv if available, else a venv+pip fallback). See slurm/setup_env.sh.
 source slurm/setup_env.sh

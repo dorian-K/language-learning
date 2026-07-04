@@ -161,6 +161,16 @@ def _synth_piper(text: str, wav_path: str) -> None:
 
 
 # --- XTTS-v2 backend (cluster/H100, highest realism) -------------------------------------
+# XTTS-v2 ships ~58 built-in studio speakers; we rotate a curated, gender-balanced subset by
+# default so the deck has real voice variety (override with a comma list in TTS_SPEAKERS, or
+# list them all with:  TTS(...).synthesizer.tts_model.speaker_manager.speakers.keys()).
+# Note: built-in speakers set the *timbre*; the Spanish accent comes from language="es". For a
+# guaranteed peninsular accent instead of variety, clone a Castilian clip via TTS_REF_WAV.
+_XTTS_DEFAULT_SPEAKERS = (
+    "Ana Florence,Sofia Hellen,Alexandra Hisakawa,Rosemary Okafor,Gracie Wise,Tanja Adelina,"
+    "Alma María,Daisy Studious,Damien Black,Luis Moray,Marcos Rudaski,Ferran Simen,"
+    "Dionisio Schuyler,Aaron Dreschner,Baldur Sanjin,Viktor Eka"
+)
 
 _XTTS = None
 
@@ -178,15 +188,37 @@ def _xtts_model():
     return _XTTS
 
 
+def _xtts_refs() -> list[str]:
+    """Castilian reference clips for voice cloning — this is what pins the *peninsular* accent.
+
+    ``TTS_REF_DIR`` (a folder of ``.wav`` Spain clips) → rotate across all of them per phrase, so
+    the deck gets peninsular accent *and* speaker variety. ``TTS_REF_WAV`` → a single clip (one
+    consistent Castilian voice). Cloning beats built-in speakers here because XTTS's ``language=es``
+    is neutral/Latin-leaning on its own; the reference clip is what makes it sound like Spain.
+    """
+    ref_dir = os.getenv("TTS_REF_DIR")
+    if ref_dir and os.path.isdir(ref_dir):
+        wavs = sorted(
+            os.path.join(ref_dir, f) for f in os.listdir(ref_dir) if f.lower().endswith(".wav")
+        )
+        if wavs:
+            return wavs
+    ref_wav = os.getenv("TTS_REF_WAV")
+    return [ref_wav] if ref_wav else []
+
+
 def _synth_xtts(text: str, wav_path: str) -> None:
     model = _xtts_model()
-    ref_wav = os.getenv("TTS_REF_WAV")  # Castilian reference clip for voice cloning (best accent)
     kwargs = {"text": text, "file_path": wav_path, "language": "es"}
-    if ref_wav:
-        kwargs["speaker_wav"] = ref_wav  # cloning a single reference: one consistent voice
+    refs = _xtts_refs()
+    if refs:
+        # Clone a Castilian reference → guaranteed peninsular accent. Several clips in TTS_REF_DIR
+        # are rotated per phrase, so we get variety *and* the Spain accent (the ideal combo).
+        kwargs["speaker_wav"] = _pick_voice(text, refs)
     else:
-        # Rotate built-in speakers for variety (comma list in TTS_SPEAKERS).
-        kwargs["speaker"] = _pick_voice(text, _voices("TTS_SPEAKERS", "Ana Florence,Damien Black"))
+        # No reference clip: built-in speakers give variety but a neutral/Latin accent, NOT a
+        # guaranteed peninsular one. Set TTS_REF_DIR if the Spain accent matters.
+        kwargs["speaker"] = _pick_voice(text, _voices("TTS_SPEAKERS", _XTTS_DEFAULT_SPEAKERS))
     model.tts_to_file(**kwargs)
 
 
