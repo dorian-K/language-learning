@@ -9,7 +9,9 @@ Three backends, selected via the ``TTS_BACKEND`` env var:
 - ``kokoro`` — Kokoro-82M via onnxruntime (no torch), CPU-friendly. More natural than Piper;
   Spanish g2p is espeak-ng Castilian phonology (the /θ/ distinction).
 - ``xtts``  — Coqui XTTS-v2, the highest-realism option, meant for the H100 SLURM cluster.
-  Clones a Castilian reference voice (``TTS_REF_WAV``) or falls back to built-in speakers.
+  Clones Castilian reference clips (``TTS_REF_DIR``) for a guaranteed peninsular accent, rotates
+  built-in preset speakers (``TTS_SPEAKERS``) for timbre variety, or **mixes both** into one
+  rotation pool when ``TTS_MIX_PRESETS`` is set.
 
 Voice variety: each backend takes a comma-separated voice list (``TTS_PIPER_VOICES`` /
 ``TTS_KOKORO_VOICES`` / ``TTS_SPEAKERS``) and picks one *deterministically per phrase*, so the
@@ -40,6 +42,7 @@ import os
 import shutil
 import subprocess
 import tempfile
+from typing import TypeVar
 
 # Order matters: mp3 preferred (small), wav is the ffmpeg-less fallback. The deck builder
 # searches these in order, so a phrase voiced as either extension is picked up transparently.
@@ -119,9 +122,15 @@ def _voices(env_var: str, default: str) -> list[str]:
     return [v.strip() for v in raw.split(",") if v.strip()]
 
 
-def _pick_voice(text: str, voices: list[str]) -> str:
+_T = TypeVar("_T")
+
+
+def _pick_voice(text: str, voices: list[_T]) -> _T:  # noqa: UP047 — PEP 695 needs 3.12; we target 3.11
     """Deterministically choose one voice for ``text`` — stable per phrase, so the deck has
-    varied speakers while staying idempotent (same text always maps to the same voice/file)."""
+    varied speakers while staying idempotent (same text always maps to the same voice/file).
+
+    Generic over the element type so it works on both plain voice-name strings and the
+    ``(kind, value)`` pairs the XTTS mix rotation uses — it only ever hashes ``text``."""
     idx = int(hashlib.sha1(text.encode("utf-8")).hexdigest(), 16) % len(voices)
     return voices[idx]
 
@@ -161,15 +170,20 @@ def _synth_piper(text: str, wav_path: str) -> None:
 
 
 # --- XTTS-v2 backend (cluster/H100, highest realism) -------------------------------------
-# XTTS-v2 ships ~58 built-in studio speakers; we rotate a curated, gender-balanced subset by
-# default so the deck has real voice variety (override with a comma list in TTS_SPEAKERS, or
-# list them all with:  TTS(...).synthesizer.tts_model.speaker_manager.speakers.keys()).
-# Note: built-in speakers set the *timbre*; the Spanish accent comes from language="es". For a
-# guaranteed peninsular accent instead of variety, clone a Castilian clip via TTS_REF_WAV.
+# XTTS-v2 ships ~58 built-in studio speakers. The default list below is the subset that sounded
+# convincingly *peninsular* when every speaker was auditioned on a Castilian diagnostic line
+# (see scripts/generate_speaker_audition.py) — hand-picked by ear, since a speaker's name tells
+# you nothing about the accent it produces with language="es". Override via TTS_SPEAKERS; list
+# every available name with:  TTS(...).synthesizer.tts_model.speaker_manager.speakers.keys().
+# Built-in speakers set the *timbre*; the accent still rides on language="es", so these are a
+# curated shortcut, not a guarantee. Cloning a Castilian clip (TTS_REF_DIR) is the guarantee —
+# set TTS_MIX_PRESETS to rotate these presets alongside the cloned refs for extra variety.
 _XTTS_DEFAULT_SPEAKERS = (
-    "Ana Florence,Sofia Hellen,Alexandra Hisakawa,Rosemary Okafor,Gracie Wise,Tanja Adelina,"
-    "Alma María,Daisy Studious,Damien Black,Luis Moray,Marcos Rudaski,Ferran Simen,"
-    "Dionisio Schuyler,Aaron Dreschner,Baldur Sanjin,Viktor Eka"
+    "Ferran Simen,Camilla Holmström,Chandra MacFarland,Rosemary Okafor,Vjollca Johnnie,"
+    "Brenda Stern,Henriette Usha,Eugenio Mataracı,Barbora MacLean,Claribel Dervla,"
+    "Zofija Kendrick,Daisy Studious,Gitta Nikolina,Tammy Grit,Maja Ruoho,Alma María,"
+    "Viktor Eka,Damjan Chapman,Gilberto Mathias,Narelle Moon,Xavier Hayasaka,Tammie Ema,"
+    "Luis Moray,Andrew Chipper"
 )
 
 _XTTS = None
@@ -207,18 +221,34 @@ def _xtts_refs() -> list[str]:
     return [ref_wav] if ref_wav else []
 
 
+def _truthy(env_var: str) -> bool:
+    return os.getenv(env_var, "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _xtts_voices() -> list[tuple[str, str]]:
+    """Build the XTTS rotation pool as ``(kind, value)`` pairs, ``kind`` ∈ {"clone", "preset"}.
+
+    - ``clone`` → a Castilian reference ``.wav`` (``speaker_wav``); guarantees the peninsular accent.
+    - ``preset`` → a built-in speaker name (``speaker``); accent rides on ``language="es"``.
+
+    Three modes:
+      * refs present, ``TTS_MIX_PRESETS`` off (default) → clone only (accent guaranteed).
+      * refs present, ``TTS_MIX_PRESETS`` on            → clones + presets in one pool (max variety).
+      * no refs                                          → presets only.
+    """
+    refs = [("clone", r) for r in _xtts_refs()]
+    presets = [("preset", p) for p in _voices("TTS_SPEAKERS", _XTTS_DEFAULT_SPEAKERS)]
+    if not refs:
+        return presets
+    return refs + presets if _truthy("TTS_MIX_PRESETS") else refs
+
+
 def _synth_xtts(text: str, wav_path: str) -> None:
     model = _xtts_model()
     kwargs = {"text": text, "file_path": wav_path, "language": "es"}
-    refs = _xtts_refs()
-    if refs:
-        # Clone a Castilian reference → guaranteed peninsular accent. Several clips in TTS_REF_DIR
-        # are rotated per phrase, so we get variety *and* the Spain accent (the ideal combo).
-        kwargs["speaker_wav"] = _pick_voice(text, refs)
-    else:
-        # No reference clip: built-in speakers give variety but a neutral/Latin accent, NOT a
-        # guaranteed peninsular one. Set TTS_REF_DIR if the Spain accent matters.
-        kwargs["speaker"] = _pick_voice(text, _voices("TTS_SPEAKERS", _XTTS_DEFAULT_SPEAKERS))
+    # One (kind, value) chosen deterministically per phrase → varied voices, idempotent files.
+    kind, value = _pick_voice(text, _xtts_voices())
+    kwargs["speaker_wav" if kind == "clone" else "speaker"] = value
     model.tts_to_file(**kwargs)
 
 

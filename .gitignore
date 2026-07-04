@@ -9,6 +9,11 @@ anki/
 cheatsheet/
 data/
 
+# Throwaway TTS staging dirs (raw fetched candidates + built-in speaker audition clips).
+# The curated keepers live in ref/ (committed); these are scratch and get regenerated.
+ref_candidates/
+speaker_audition/
+
 # Ignore environment variables (where your secret token will live)
 .env
 

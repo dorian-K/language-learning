@@ -133,3 +133,15 @@ The `mosquitto` service uses `allow_anonymous true` with no auth. Never add `por
 ### Simplifier uses `llm.complete_json()` with JSON mode — do not switch back to `complete()`
 
 The LLM (via `openrouter/auto`) would return multi-line bullet strings with literal newline characters inside JSON string values, producing invalid JSON. The fix is `response_format={"type": "json_object"}` enforced in `LLM.complete_json()`. The simplifier calls `complete_json()` directly and does no JSON parsing of its own. Do not revert to `llm.complete()` + manual `json.loads()`.
+
+### XTTS voice selection (`tts.py`) — three modes, not either/or
+
+`_synth_xtts` picks one voice per phrase from a `(kind, value)` pool built by `_xtts_voices()`:
+- **cloned refs** (`TTS_REF_DIR`/`TTS_REF_WAV`) → `speaker_wav`, guaranteed peninsular accent;
+- **preset speakers** (`TTS_SPEAKERS`, default `_XTTS_DEFAULT_SPEAKERS`) → `speaker`, accent only from `language="es"`;
+- **mix** — when `TTS_MIX_PRESETS` is truthy *and* refs exist, the pool is refs **+** presets.
+
+Rules that must not be re-broken:
+- The default `_XTTS_DEFAULT_SPEAKERS` list is the 24 built-ins the user hand-picked by ear as peninsular-sounding (via `scripts/generate_speaker_audition.py`). A speaker's *name* says nothing about its accent — do not "clean up" the list by dropping odd-looking names.
+- Without `TTS_MIX_PRESETS`, refs still win over presets (accent guarantee). Mix is opt-in; `generate_number_audio.slurm` sets `TTS_MIX_PRESETS=1` deliberately.
+- `_pick_voice` is generic (`TypeVar`) and carries `# noqa: UP047` because PEP 695 syntax needs 3.12 but the project targets 3.11. Do not let ruff rewrite it to `def _pick_voice[_T]`.

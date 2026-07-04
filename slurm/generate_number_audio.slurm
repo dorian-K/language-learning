@@ -44,6 +44,11 @@ if ! ls "$TTS_REF_DIR"/*.wav >/dev/null 2>&1; then
     exit 1
 fi
 
+# MIX IN THE CURATED PRESETS: also rotate XTTS's built-in speakers that were hand-picked as
+# peninsular-sounding (the tts.py default TTS_SPEAKERS list, from the audition) alongside the
+# cloned refs, for extra timbre variety. Unset this to use the cloned refs only.
+export TTS_MIX_PRESETS=1
+
 # Sets up $PY (uv if available, else a stdlib venv + pip fallback). See slurm/setup_env.sh.
 source slurm/setup_env.sh
 
