@@ -21,6 +21,11 @@ deck has varied speakers while staying idempotent. Kokoro rotates 3 Spanish voic
 Leading silence: ``TTS_LEAD_SILENCE_MS`` (default 0) optionally pads the start of every clip.
 Set it to a positive value if autoplay clips feel like they begin too abruptly; 0 = no padding.
 
+Boundary cleanup (needs ffmpeg): every clip gets a short fade in/out (``TTS_FADE_MS``, default 10)
+and has trailing silence trimmed (``TTS_TRIM_END_SILENCE``, default on) — this masks the occasional
+click/pop or noise burst XTTS emits at a clip's edges. Set ``TTS_FADE_MS=0`` / ``TTS_TRIM_END_SILENCE=0``
+to disable.
+
 Switching backends/voices: filenames are content-based (not backend/voice-tagged), so to
 re-voice, clear ``anki/numbers/media/`` first (otherwise existing clips are kept).
 
@@ -94,6 +99,40 @@ def _to_mp3(wav_path: str, mp3_path: str) -> None:
         ],
         check=True,
     )
+
+
+def _postprocess_wav(wav_path: str, fade_ms: int, trim_end: bool) -> None:
+    """Trim trailing silence and apply a short fade in/out — masks XTTS boundary artifacts.
+
+    XTTS occasionally emits a click/pop or noise burst right at the start or end of a clip; a
+    few-ms fade smooths those, and trimming trailing silence tightens the tail. Operates in place
+    on a PCM wav via ffmpeg, so it's backend-agnostic; a no-op if both options are off or ffmpeg
+    is absent (the wav-only fallback path then ships unprocessed audio).
+
+    The tail (trailing-silence trim + fade-out) is done in a single ``areverse`` block: reverse,
+    strip the now-leading silence, fade-in (which becomes a fade-out after reversing back), reverse.
+    """
+    if not (trim_end or fade_ms > 0) or not _have_ffmpeg():
+        return
+
+    fade = fade_ms / 1000.0
+    chain: list[str] = []
+    if fade_ms > 0:
+        chain.append(f"afade=t=in:st=0:d={fade}")
+    tail: list[str] = []
+    if trim_end:
+        tail.append("silenceremove=start_periods=1:start_threshold=-50dB")
+    if fade_ms > 0:
+        tail.append(f"afade=t=in:st=0:d={fade}")
+    if tail:
+        chain += ["areverse", *tail, "areverse"]
+
+    tmp = wav_path + ".proc.wav"
+    subprocess.run(
+        ["ffmpeg", "-y", "-loglevel", "error", "-i", wav_path, "-af", ",".join(chain), tmp],
+        check=True,
+    )
+    os.replace(tmp, wav_path)
 
 
 def _prepend_silence(wav_path: str, ms: int) -> None:
@@ -181,7 +220,7 @@ def _synth_piper(text: str, wav_path: str) -> str:
 # curated shortcut, not a guarantee. Cloning a Castilian clip (TTS_REF_DIR) is the guarantee —
 # set TTS_MIX_PRESETS to rotate these presets alongside the cloned refs for extra variety.
 _XTTS_DEFAULT_SPEAKERS = (
-    "Ferran Simen,Rosemary Okafor,Vjollca Johnnie,Eugenio Mataracı,Claribel Dervla,"
+    "Ferran Simen,Rosemary Okafor,Vjollca Johnnie,Claribel Dervla,"
     "Tammy Grit,Maja Ruoho,Alma María,Damjan Chapman,Xavier Hayasaka"
 )
 
@@ -335,6 +374,13 @@ def synthesize(text: str, media_dir: str) -> tuple[str, str | None]:
     with tempfile.TemporaryDirectory() as td:
         wav = os.path.join(td, stem + ".wav")
         voice = _BACKENDS[backend](text, wav)
+        # Trim trailing silence + short fade in/out (before lead silence, so the fade lands on
+        # speech, not padding). Defaults on; TTS_FADE_MS=0 / TTS_TRIM_END_SILENCE=0 disable them.
+        _postprocess_wav(
+            wav,
+            int(os.getenv("TTS_FADE_MS", "10")),
+            os.getenv("TTS_TRIM_END_SILENCE", "1").strip().lower() in {"1", "true", "yes", "on"},
+        )
         _prepend_silence(wav, int(os.getenv("TTS_LEAD_SILENCE_MS", "0")))
         if _have_ffmpeg():
             out = os.path.join(media_dir, stem + ".mp3")
