@@ -78,18 +78,25 @@ def main() -> None:
         print(f"SMOKE TEST: limiting to {len(strings)} phrases")
 
     generated = skipped = 0
+    by_voice: dict[str, int] = {}
     for text in strings:
         if find_audio(MEDIA_FOLDER, text):
             skipped += 1
             continue
-        basename = synthesize(text, MEDIA_FOLDER)
+        basename, voice = synthesize(text, MEDIA_FOLDER)
         generated += 1
-        print(f"  {text}  ->  {basename}")
+        # Log the speaker/voice per clip so a degenerate output can be traced back to its voice.
+        print(f"  [{voice}]  {text}  ->  {basename}")
+        by_voice[voice or "?"] = by_voice.get(voice or "?", 0) + 1
 
     print(
         f"\nDone: {generated} generated, {skipped} already present "
         f"({len(strings)} phrases requested) in {MEDIA_FOLDER}"
     )
+    if by_voice:
+        print("Clips per voice:")
+        for voice, count in sorted(by_voice.items()):
+            print(f"  {count:>4}  {voice}")
 
 
 if __name__ == "__main__":

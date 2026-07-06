@@ -161,12 +161,14 @@ def _piper_voice(voice: str):
     return _PIPER_VOICES[voice]
 
 
-def _synth_piper(text: str, wav_path: str) -> None:
+def _synth_piper(text: str, wav_path: str) -> str:
     import wave
 
-    voice = _piper_voice(_pick_voice(text, _voices("TTS_PIPER_VOICES", "es_ES-davefx-medium")))
+    name = _pick_voice(text, _voices("TTS_PIPER_VOICES", "es_ES-davefx-medium"))
+    voice = _piper_voice(name)
     with wave.open(wav_path, "wb") as wf:
         voice.synthesize_wav(text, wf)
+    return name
 
 
 # --- XTTS-v2 backend (cluster/H100, highest realism) -------------------------------------
@@ -242,13 +244,15 @@ def _xtts_voices() -> list[tuple[str, str]]:
     return refs + presets if _truthy("TTS_MIX_PRESETS") else refs
 
 
-def _synth_xtts(text: str, wav_path: str) -> None:
+def _synth_xtts(text: str, wav_path: str) -> str:
     model = _xtts_model()
     kwargs = {"text": text, "file_path": wav_path, "language": "es"}
     # One (kind, value) chosen deterministically per phrase → varied voices, idempotent files.
     kind, value = _pick_voice(text, _xtts_voices())
     kwargs["speaker_wav" if kind == "clone" else "speaker"] = value
     model.tts_to_file(**kwargs)
+    # Report a readable voice label; for cloned refs use the clip's basename, not its full path.
+    return f"{kind}:{os.path.basename(value) if kind == 'clone' else value}"
 
 
 # --- Kokoro-82M backend (local, CPU, onnxruntime — no torch) ------------------------------
@@ -287,7 +291,7 @@ def _kokoro_model():
     return _KOKORO
 
 
-def _synth_kokoro(text: str, wav_path: str) -> None:
+def _synth_kokoro(text: str, wav_path: str) -> str:
     import wave
 
     import numpy as np
@@ -303,20 +307,26 @@ def _synth_kokoro(text: str, wav_path: str) -> None:
         wf.setsampwidth(2)
         wf.setframerate(sample_rate)
         wf.writeframes(pcm.tobytes())
+    return voice
 
 
 _BACKENDS = {"piper": _synth_piper, "xtts": _synth_xtts, "kokoro": _synth_kokoro}
 
 
-def synthesize(text: str, media_dir: str) -> str:
-    """Idempotently produce an audio clip for ``text`` in ``media_dir``; return its basename.
+def synthesize(text: str, media_dir: str) -> tuple[str, str | None]:
+    """Idempotently produce an audio clip for ``text`` in ``media_dir``.
+
+    Returns ``(basename, voice)`` where ``voice`` is the backend voice/speaker that rendered the
+    clip (e.g. ``"preset:Alma María"``, ``"clone:voxpopuli_es_female_spk4334.wav"``), or ``None``
+    when the clip already existed and nothing was synthesized. The voice label lets callers log
+    which speaker produced which clip — handy for tracking down degenerate XTTS outputs.
 
     If a clip already exists (either extension) nothing is regenerated. Otherwise the configured
     backend renders a wav, which is transcoded to mp3 when ffmpeg is present (else kept as wav).
     """
     existing = find_audio(media_dir, text)
     if existing:
-        return existing
+        return existing, None
 
     os.makedirs(media_dir, exist_ok=True)
     backend = os.getenv("TTS_BACKEND", "piper").lower()
@@ -326,7 +336,7 @@ def synthesize(text: str, media_dir: str) -> str:
     stem = audio_stem(text)
     with tempfile.TemporaryDirectory() as td:
         wav = os.path.join(td, stem + ".wav")
-        _BACKENDS[backend](text, wav)
+        voice = _BACKENDS[backend](text, wav)
         _prepend_silence(wav, int(os.getenv("TTS_LEAD_SILENCE_MS", "0")))
         if _have_ffmpeg():
             out = os.path.join(media_dir, stem + ".mp3")
@@ -334,4 +344,4 @@ def synthesize(text: str, media_dir: str) -> str:
         else:
             out = os.path.join(media_dir, stem + ".wav")
             shutil.copyfile(wav, out)
-    return os.path.basename(out)
+    return os.path.basename(out), voice
