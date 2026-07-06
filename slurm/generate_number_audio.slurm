@@ -35,18 +35,20 @@ export COQUI_TOS_AGREED=1                 # accept the Coqui XTTS license non-in
 
 # PENINSULAR ACCENT: XTTS clones the accent from reference clips. Put several clean, single-speaker
 # Castilian .wav clips (~6-15s each) in ref/ (rsync them up first) — XTTS rotates them per phrase
-# for a Spain accent WITH voice variety. Without clips it would use built-in speakers (neutral/
-# Latin accent), so we hard-fail here instead of silently producing the wrong accent.
+# for a Spain accent WITH voice variety. If ref/ is empty, we fall back to the curated built-in
+# preset speakers (tts.py TTS_SPEAKERS), whose accent only rides on language="es" — so we warn
+# loudly rather than silently assuming the accent is guaranteed.
 export TTS_REF_DIR="$PWD/ref"
 if ! ls "$TTS_REF_DIR"/*.wav >/dev/null 2>&1; then
-    echo "ERROR: no .wav reference clips in $TTS_REF_DIR — peninsular accent requires them." >&2
-    echo "       rsync your Castilian clips there first, e.g. rsync -av ./ref/ <cluster>:<repo>/ref/" >&2
-    exit 1
+    echo "WARNING: no .wav reference clips in $TTS_REF_DIR — using preset speakers only." >&2
+    echo "         Accent is NOT guaranteed peninsular. Add Castilian clips to ref/ for the" >&2
+    echo "         cloning-based guarantee, e.g. rsync -av ./ref/ <cluster>:<repo>/ref/" >&2
 fi
 
 # MIX IN THE CURATED PRESETS: also rotate XTTS's built-in speakers that were hand-picked as
-# peninsular-sounding (the tts.py default TTS_SPEAKERS list, from the audition) alongside the
-# cloned refs, for extra timbre variety. Unset this to use the cloned refs only.
+# peninsular-sounding (the tts.py default TTS_SPEAKERS list, from the audition) alongside any
+# cloned refs, for extra timbre variety. With ref/ empty this is a no-op (presets are used
+# anyway); with refs present, unset it to use the cloned refs only.
 export TTS_MIX_PRESETS=1
 
 # Sets up $PY (uv if available, else a stdlib venv + pip fallback). See slurm/setup_env.sh.
