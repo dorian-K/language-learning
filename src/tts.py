@@ -183,7 +183,7 @@ def _synth_piper(text: str, wav_path: str) -> str:
 _XTTS_DEFAULT_SPEAKERS = (
     "Ferran Simen,Chandra MacFarland,Rosemary Okafor,Vjollca Johnnie,Eugenio Mataracı,"
     "Claribel Dervla,Tammy Grit,Maja Ruoho,Alma María,Damjan Chapman,"
-    "Xavier Hayasaka,Tammie Ema,Luis Moray"
+    "Xavier Hayasaka,Tammie Ema"
 )
 
 _XTTS = None
