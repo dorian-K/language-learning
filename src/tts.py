@@ -226,7 +226,7 @@ def _synth_piper(text: str, wav_path: str) -> str:
 # curated shortcut, not a guarantee. Cloning a Castilian clip (TTS_REF_DIR) is the guarantee —
 # set TTS_MIX_PRESETS to rotate these presets alongside the cloned refs for extra variety.
 _XTTS_DEFAULT_SPEAKERS = (
-    "Ferran Simen,Vjollca Johnnie,"
+    "Ferran Simen,"
     "Tammy Grit,Alma María,Damjan Chapman,Xavier Hayasaka"
 )
 
