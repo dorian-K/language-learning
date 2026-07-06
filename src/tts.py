@@ -225,10 +225,7 @@ def _synth_piper(text: str, wav_path: str) -> str:
 # Built-in speakers set the *timbre*; the accent still rides on language="es", so these are a
 # curated shortcut, not a guarantee. Cloning a Castilian clip (TTS_REF_DIR) is the guarantee —
 # set TTS_MIX_PRESETS to rotate these presets alongside the cloned refs for extra variety.
-_XTTS_DEFAULT_SPEAKERS = (
-    "Ferran Simen,"
-    "Tammy Grit,Alma María,Damjan Chapman,Xavier Hayasaka"
-)
+_XTTS_DEFAULT_SPEAKERS = "Ferran Simen,Tammy Grit,Alma María,Damjan Chapman,Xavier Hayasaka"
 
 _XTTS = None
 
@@ -300,7 +297,6 @@ def _xtts_gen_kwargs() -> dict:
     fallback in :func:`_xtts_render`, which then drops them for the rest of the run.
     """
     kw: dict = {
-        "temperature": float(os.getenv("TTS_XTTS_TEMPERATURE", "0.65")),
         "repetition_penalty": float(os.getenv("TTS_XTTS_REP_PENALTY", "5.0")),
         "length_penalty": float(os.getenv("TTS_XTTS_LENGTH_PENALTY", "1.0")),
     }
