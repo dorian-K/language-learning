@@ -145,3 +145,9 @@ Rules that must not be re-broken:
 - The default `_XTTS_DEFAULT_SPEAKERS` list is the built-ins the user hand-picked by ear as peninsular-sounding (via `scripts/generate_speaker_audition.py`). A speaker's *name* says nothing about its accent — do not "clean up" the list by dropping odd-looking names.
 - Without `TTS_MIX_PRESETS`, refs still win over presets (accent guarantee). Mix is opt-in; `generate_number_audio.slurm` sets `TTS_MIX_PRESETS=1` deliberately.
 - `_pick_voice` is generic (`TypeVar`) and carries `# noqa: UP047` because PEP 695 syntax needs 3.12 but the project targets 3.11. Do not let ruff rewrite it to `def _pick_voice[_T]`.
+
+### XTTS babble guard + boundary cleanup (`tts.py`)
+
+XTTS occasionally "babbles" — a short input renders as a long clip of repeated/garbled speech. `_synth_xtts` guards against this: it renders, checks the wav duration against `max(2.5, len(text)*0.18 + 1.5)`, and on a too-long render retries with the **next** voice in the rotation, keeping the **shortest** attempt (babble is almost always the longest). The first voice tried is the plain deterministic pick, so clips that render fine are unchanged. Tunable via `TTS_XTTS_MAX_ATTEMPTS`; anti-loop inference knobs (`repetition_penalty`, `temperature`, …) come from `_xtts_gen_kwargs()` and are passed best-effort (a Coqui build that rejects them trips a one-time `TypeError` fallback via `_XTTS_GEN_KWARGS_OK`). Do not "simplify" `_synth_xtts` back to a single render — the retry is the whole point.
+
+Separately, every clip (all backends) gets a short fade in/out (`TTS_FADE_MS`, default 10ms) and trailing-silence trim (`TTS_TRIM_END_SILENCE`, default on) via `_postprocess_wav()` — masks click/pop/noise bursts at clip edges. Needs ffmpeg; no-op without it. The trim handles *silence*, the babble guard handles *garbled length* — they are complementary, keep both.

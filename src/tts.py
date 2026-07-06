@@ -11,7 +11,9 @@ Three backends, selected via the ``TTS_BACKEND`` env var:
 - ``xtts``  — Coqui XTTS-v2, the highest-realism option, meant for the H100 SLURM cluster.
   Clones Castilian reference clips (``TTS_REF_DIR``) for a guaranteed peninsular accent, rotates
   built-in preset speakers (``TTS_SPEAKERS``) for timbre variety, or **mixes both** into one
-  rotation pool when ``TTS_MIX_PRESETS`` is set.
+  rotation pool when ``TTS_MIX_PRESETS`` is set. Guards against XTTS "babble" (a short input
+  rendering as a long garbled clip): over-long renders are retried with the next voice and the
+  shortest attempt is kept (``TTS_XTTS_MAX_ATTEMPTS``, plus anti-loop inference knobs).
 
 Voice variety: each backend takes a comma-separated voice list (``TTS_PIPER_VOICES`` /
 ``TTS_KOKORO_VOICES`` / ``TTS_SPEAKERS``) and picks one *deterministically per phrase*, so the
@@ -46,7 +48,9 @@ import hashlib
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
+import wave
 from typing import TypeVar
 
 # Order matters: mp3 preferred (small), wav is the ffmpeg-less fallback. The deck builder
@@ -141,8 +145,6 @@ def _prepend_silence(wav_path: str, ms: int) -> None:
     Backend-agnostic — operates on the rendered wav before mp3 transcode, so it applies
     regardless of which backend produced the audio or whether ffmpeg is present.
     """
-    import wave
-
     if ms <= 0:
         return
     with wave.open(wav_path, "rb") as r:
@@ -153,6 +155,12 @@ def _prepend_silence(wav_path: str, ms: int) -> None:
     with wave.open(wav_path, "wb") as w:
         w.setparams(params)
         w.writeframes(silence + frames)
+
+
+def _wav_duration(wav_path: str) -> float:
+    """Duration of a PCM wav in seconds (used to detect XTTS babble — over-long renders)."""
+    with wave.open(wav_path, "rb") as r:
+        return r.getnframes() / r.getframerate()
 
 
 def _voices(env_var: str, default: str) -> list[str]:
@@ -201,8 +209,6 @@ def _piper_voice(voice: str):
 
 
 def _synth_piper(text: str, wav_path: str) -> str:
-    import wave
-
     name = _pick_voice(text, _voices("TTS_PIPER_VOICES", "es_ES-davefx-medium"))
     voice = _piper_voice(name)
     with wave.open(wav_path, "wb") as wf:
@@ -281,15 +287,87 @@ def _xtts_voices() -> list[tuple[str, str]]:
     return refs + presets if _truthy("TTS_MIX_PRESETS") else refs
 
 
+def _voice_label(kind: str, value: str) -> str:
+    """Readable voice label for logging; cloned refs show the clip basename, not the full path."""
+    return f"{kind}:{os.path.basename(value) if kind == 'clone' else value}"
+
+
+def _xtts_gen_kwargs() -> dict:
+    """XTTS inference knobs that curb babble/looping (a short input rendering as long garbled speech).
+
+    A higher ``repetition_penalty`` discourages the model from looping; the values are overridable
+    via env. Passed best-effort — a Coqui build that doesn't accept them trips the ``TypeError``
+    fallback in :func:`_xtts_render`, which then drops them for the rest of the run.
+    """
+    kw: dict = {
+        "temperature": float(os.getenv("TTS_XTTS_TEMPERATURE", "0.65")),
+        "repetition_penalty": float(os.getenv("TTS_XTTS_REP_PENALTY", "5.0")),
+        "length_penalty": float(os.getenv("TTS_XTTS_LENGTH_PENALTY", "1.0")),
+    }
+    if os.getenv("TTS_XTTS_TEXT_SPLITTING", "1").strip().lower() in {"1", "true", "yes", "on"}:
+        kw["enable_text_splitting"] = True
+    return kw
+
+
+# Flipped off once if this Coqui build rejects the generation knobs, so we don't retry them per clip.
+_XTTS_GEN_KWARGS_OK = True
+
+
+def _xtts_render(model, text: str, kind: str, value: str, path: str) -> None:
+    """Render one XTTS clip to ``path`` with the anti-babble knobs, degrading gracefully."""
+    global _XTTS_GEN_KWARGS_OK
+    core = {"text": text, "language": "es", "file_path": path}
+    core["speaker_wav" if kind == "clone" else "speaker"] = value
+    if _XTTS_GEN_KWARGS_OK:
+        try:
+            model.tts_to_file(**core, **_xtts_gen_kwargs())
+            return
+        except TypeError:
+            _XTTS_GEN_KWARGS_OK = False  # this build lacks the knobs — stop passing them
+    model.tts_to_file(**core)
+
+
+# XTTS babble guard: cap = max(MIN, len(text)*SECS_PER_CHAR + BASE). Scales with text length so a
+# long legitimate phrase isn't flagged while a short word ballooning to several seconds is.
+_XTTS_MIN_CAP_S = 2.5
+_XTTS_CAP_BASE_S = 1.5
+_XTTS_SECS_PER_CHAR = 0.18
+
+
 def _synth_xtts(text: str, wav_path: str) -> str:
     model = _xtts_model()
-    kwargs = {"text": text, "file_path": wav_path, "language": "es"}
-    # One (kind, value) chosen deterministically per phrase → varied voices, idempotent files.
-    kind, value = _pick_voice(text, _xtts_voices())
-    kwargs["speaker_wav" if kind == "clone" else "speaker"] = value
-    model.tts_to_file(**kwargs)
-    # Report a readable voice label; for cloned refs use the clip's basename, not its full path.
-    return f"{kind}:{os.path.basename(value) if kind == 'clone' else value}"
+    voices = _xtts_voices()
+
+    # XTTS sometimes "babbles": a short input renders as a long clip of repeated/garbled speech.
+    # Reject an implausibly long render and retry with the next voice in the rotation, keeping the
+    # shortest attempt (babble is almost always the longest). The first voice matches the plain
+    # deterministic pick, so clips that render fine are byte-for-byte unchanged from before.
+    max_dur = max(_XTTS_MIN_CAP_S, len(text) * _XTTS_SECS_PER_CHAR + _XTTS_CAP_BASE_S)
+    attempts = max(1, int(os.getenv("TTS_XTTS_MAX_ATTEMPTS", "4")))
+    start = int(hashlib.sha1(text.encode("utf-8")).hexdigest(), 16) % len(voices)
+
+    best_tmp: str | None = None
+    best_voice: tuple[str, str] | None = None
+    best_dur = float("inf")
+    for i in range(attempts):
+        kind, value = voices[(start + i) % len(voices)]
+        tmp = f"{wav_path}.try{i}.wav"
+        _xtts_render(model, text, kind, value, tmp)
+        dur = _wav_duration(tmp)
+        if dur < best_dur:
+            best_tmp, best_dur, best_voice = tmp, dur, (kind, value)
+        if dur <= max_dur:
+            break
+
+    assert best_tmp is not None and best_voice is not None  # attempts >= 1 guarantees one render
+    if best_dur > max_dur:
+        print(
+            f"WARNING: XTTS render for {text!r} is {best_dur:.1f}s (cap {max_dur:.1f}s) after "
+            f"{attempts} attempt(s) — likely babble; keeping the shortest.",
+            file=sys.stderr,
+        )
+    os.replace(best_tmp, wav_path)
+    return _voice_label(*best_voice)
 
 
 # --- Kokoro-82M backend (local, CPU, onnxruntime — no torch) ------------------------------
@@ -329,8 +407,6 @@ def _kokoro_model():
 
 
 def _synth_kokoro(text: str, wav_path: str) -> str:
-    import wave
-
     import numpy as np
 
     model = _kokoro_model()
