@@ -180,10 +180,9 @@ def _synth_piper(text: str, wav_path: str) -> None:
 # set TTS_MIX_PRESETS to rotate these presets alongside the cloned refs for extra variety.
 _XTTS_DEFAULT_SPEAKERS = (
     "Ferran Simen,Camilla Holmström,Chandra MacFarland,Rosemary Okafor,Vjollca Johnnie,"
-    "Brenda Stern,Henriette Usha,Eugenio Mataracı,Barbora MacLean,Claribel Dervla,"
-    "Zofija Kendrick,Daisy Studious,Gitta Nikolina,Tammy Grit,Maja Ruoho,Alma María,"
-    "Viktor Eka,Damjan Chapman,Gilberto Mathias,Narelle Moon,Xavier Hayasaka,Tammie Ema,"
-    "Luis Moray,Andrew Chipper"
+    "Eugenio Mataracı,Barbora MacLean,Claribel Dervla,Zofija Kendrick,Daisy Studious,"
+    "Tammy Grit,Maja Ruoho,Alma María,Damjan Chapman,Gilberto Mathias,Xavier Hayasaka,"
+    "Tammie Ema,Luis Moray,Andrew Chipper"
 )
 
 _XTTS = None

@@ -142,6 +142,6 @@ The LLM (via `openrouter/auto`) would return multi-line bullet strings with lite
 - **mix** — when `TTS_MIX_PRESETS` is truthy *and* refs exist, the pool is refs **+** presets.
 
 Rules that must not be re-broken:
-- The default `_XTTS_DEFAULT_SPEAKERS` list is the 24 built-ins the user hand-picked by ear as peninsular-sounding (via `scripts/generate_speaker_audition.py`). A speaker's *name* says nothing about its accent — do not "clean up" the list by dropping odd-looking names.
+- The default `_XTTS_DEFAULT_SPEAKERS` list is the built-ins the user hand-picked by ear as peninsular-sounding (via `scripts/generate_speaker_audition.py`). A speaker's *name* says nothing about its accent — do not "clean up" the list by dropping odd-looking names.
 - Without `TTS_MIX_PRESETS`, refs still win over presets (accent guarantee). Mix is opt-in; `generate_number_audio.slurm` sets `TTS_MIX_PRESETS=1` deliberately.
 - `_pick_voice` is generic (`TypeVar`) and carries `# noqa: UP047` because PEP 695 syntax needs 3.12 but the project targets 3.11. Do not let ruff rewrite it to `def _pick_voice[_T]`.
