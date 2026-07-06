@@ -225,7 +225,7 @@ def _synth_piper(text: str, wav_path: str) -> str:
 # Built-in speakers set the *timbre*; the accent still rides on language="es", so these are a
 # curated shortcut, not a guarantee. Cloning a Castilian clip (TTS_REF_DIR) is the guarantee —
 # set TTS_MIX_PRESETS to rotate these presets alongside the cloned refs for extra variety.
-_XTTS_DEFAULT_SPEAKERS = "Ferran Simen,Tammy Grit,Alma María,Damjan Chapman,Xavier Hayasaka"
+_XTTS_DEFAULT_SPEAKERS = "Alma María,Damjan Chapman,Xavier Hayasaka"
 
 _XTTS = None
 
