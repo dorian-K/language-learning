@@ -4,6 +4,7 @@ import random
 
 import genanki
 
+from spoken_sentence import spoken_sentence
 from tts import find_audio
 
 VOCAB_SOURCE = os.getenv("VOCAB_SOURCE", "Refold ES1K")
@@ -514,14 +515,17 @@ def process_conjugation_card(card, deck, media):
     tense_desc = tense_info[1]
     meta = f"{tense_name}, {person}"
 
-    # The Spanish example sentence is on the front in both directions — audio autoplays on show.
     sentence_es = (card.get("example_sentence_es", "") or "").strip()
-    sound = sound_suffix(sentence_es, SENTENCE_MEDIA_DIR, media)
+    # spoken_sentence fills the [infinitive] blank on forward cards with conjugated_form, so the
+    # audio speaks the real conjugated sentence (not "volver"). Reverse cards: no bracket, no-op.
+    sound = sound_suffix(spoken_sentence(card), SENTENCE_MEDIA_DIR, media)
 
     if direction == "conjugation_forward":
+        # Front keeps the [infinitive] blank silent; the corrected audio rides on the answer word
+        # (Back_Word renders only in afmt) so it autoplays on flip, not before recall.
         front_word = f"{infinitive} ({person})"
-        front_sentence = f"{sentence_es}{sound}"
-        back_word = conjugated
+        front_sentence = sentence_es
+        back_word = f"{conjugated}{sound}"
         back_sentence = (
             f"<span class='lang-label'>EN:</span> {card.get('example_sentence_en', '')}<br>"
             f"<span class='lang-label'>DE:</span> {card.get('example_sentence_de', '')}"

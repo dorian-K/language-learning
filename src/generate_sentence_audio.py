@@ -26,6 +26,7 @@ import argparse
 import json
 import os
 
+from spoken_sentence import spoken_sentence
 from tts import find_audio, synthesize
 
 # Must match make_anki_deck.py: same env var + default so both agree on which vocab folder to use.
@@ -63,7 +64,9 @@ def collect_sentences() -> list[str]:
                     print(f"  skipping {name}: {e}")
                     continue
             for card in data:
-                sentence = (card.get(SENTENCE_FIELD) or "").strip()
+                # Forward conjugation cards blank the verb as [infinitive]; spoken_sentence
+                # substitutes conjugated_form back so TTS speaks the real conjugated sentence.
+                sentence = spoken_sentence(card)
                 if sentence:
                     sentences.add(sentence)
     return sorted(sentences)
