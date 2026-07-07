@@ -18,7 +18,7 @@ INPUT_CONFIGS = [
     {
         "folder": os.path.join(os.path.dirname(__file__), "../anki/irregular_verbs"),
         "model_type": "conjugation",
-        "deck_naming": "flat",
+        "deck_naming": "priority",
         "deck_name": "Conjugations",
     },
     {
@@ -36,6 +36,32 @@ INPUT_CONFIGS = [
 ]
 
 OUTPUT_FOLDER = os.path.join(os.path.dirname(__file__), "../anki")
+
+# The ~12 most frequent Spanish irregulars. Cards for these go into the High Priority conjugation
+# subdeck; the long tail goes into Low Priority (see deck_naming="priority"). Split is
+# organization-only — every card is still built, with full audio. Matched case-insensitively on the
+# card's `infinitive` field (none of these carry accents, so str.lower() is enough).
+HIGH_PRIORITY_IRREGULARS = {
+    "ser",
+    "estar",
+    "ir",
+    "haber",
+    "tener",
+    "hacer",
+    "poder",
+    "decir",
+    "ver",
+    "dar",
+    "saber",
+    "querer",
+}
+
+
+def conjugation_tier(card):
+    """ "High Priority" if the card's verb is a top-frequency irregular, else "Low Priority"."""
+    infinitive = (card.get("infinitive", "") or "").strip().lower()
+    return "High Priority" if infinitive in HIGH_PRIORITY_IRREGULARS else "Low Priority"
+
 
 # Audio clips, keyed by a content hash of the spoken text (see tts.audio_stem):
 #   - number words  -> anki/numbers/media/     (generate_number_audio.py)
@@ -441,6 +467,10 @@ def get_deck_for_config(config, base_name, decks_by_name):
     config_type = config["deck_naming"]
     if config_type == "level":
         full_name = f"Lt::level{base_name}"
+    elif config_type == "priority":
+        # Nest the tier (base_name = "High Priority" / "Low Priority") under the parent deck.
+        subdeck = config.get("deck_name", os.path.basename(config["folder"]))
+        full_name = f"Lt::{subdeck}::{base_name}"
     else:
         folder_name = os.path.basename(config["folder"])
         subdeck = config.get("deck_name", folder_name)
@@ -689,6 +719,18 @@ def process_json_files():
                     if note:
                         folder_card_count += 1
                 print(f"  level{lvl}: {len(cards)} cards")
+        elif config["deck_naming"] == "priority":
+            by_tier = {}
+            for entry in entries.values():
+                tier = conjugation_tier(entry["card"])
+                by_tier.setdefault(tier, []).append(entry["card"])
+            for tier, cards in by_tier.items():
+                deck = get_deck_for_config(config, tier, packages[deck_name]["decks"])
+                for card in cards:
+                    note = process_func(card, deck, media)
+                    if note:
+                        folder_card_count += 1
+                print(f"  {tier}: {len(cards)} cards")
         else:
             deck = get_deck_for_config(config, "Conjugations", packages[deck_name]["decks"])
             for entry in entries.values():
