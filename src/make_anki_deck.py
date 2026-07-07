@@ -5,6 +5,7 @@ import random
 import genanki
 
 from spoken_sentence import spoken_sentence
+from spoken_word import spoken_word
 from tts import find_audio
 
 VOCAB_SOURCE = os.getenv("VOCAB_SOURCE", "Refold ES1K")
@@ -64,12 +65,14 @@ def conjugation_tier(card):
 
 
 # Audio clips, keyed by a content hash of the spoken text (see tts.audio_stem):
-#   - number words  -> anki/numbers/media/     (generate_number_audio.py)
-#   - example sentences -> anki/sentence_audio/ (generate_sentence_audio.py)
+#   - number words     -> anki/numbers/media/   (generate_number_audio.py)
+#   - example sentences -> anki/sentence_audio/  (generate_sentence_audio.py) — conjugation decks
+#   - vocab headwords   -> anki/word_audio/      (generate_word_audio.py) — Refold ES1K vocab deck
 # Each package bundles only the clips its own cards reference (accumulated per-package below),
 # so a deck with no audio present ships silently, unchanged.
 NUMBERS_MEDIA_DIR = os.path.join(os.path.dirname(__file__), "../anki/numbers/media")
 SENTENCE_MEDIA_DIR = os.path.join(os.path.dirname(__file__), "../anki/sentence_audio")
+WORD_MEDIA_DIR = os.path.join(os.path.dirname(__file__), "../anki/word_audio")
 
 
 def sound_suffix(text, media_dir, media):
@@ -489,12 +492,13 @@ def format_list(item_list):
 def process_vocab_card(card, deck, media):
     direction = card.get("direction")
     sentence_es = (card.get("example_sentence_es", "") or "").strip()
-    # Attach the sentence audio to whichever side carries the Spanish sentence (autoplays there).
-    sound = sound_suffix(sentence_es, SENTENCE_MEDIA_DIR, media)
+    # Audio speaks the Spanish headword (not the example sentence); attach it to whichever side
+    # carries the Spanish word so it autoplays there (front for spanish→target, back otherwise).
+    sound = sound_suffix(spoken_word(card), WORD_MEDIA_DIR, media)
 
     if direction in ["spanish_to_target", "spanish_sentence_to_target"]:
-        front_word = card.get("cue_spanish", "")
-        front_sentence = f'"{sentence_es}"{sound}'
+        front_word = f"{card.get('cue_spanish', '')}{sound}"
+        front_sentence = f'"{sentence_es}"'
 
         back_word = (
             f"<span class='lang-label'>EN:</span> {format_list(card.get('target_en', []))}<br>"
@@ -515,8 +519,10 @@ def process_vocab_card(card, deck, media):
             f"<span class='lang-label'>DE:</span> \"{card.get('example_sentence_de', '')}\""
         )
 
-        back_word = f"<span class='lang-label'>ES:</span> {format_list(card.get('target_es', []))}"
-        back_sentence = f"<span class='lang-label'>ES:</span> {sentence_es}{sound}"
+        back_word = (
+            f"<span class='lang-label'>ES:</span> {format_list(card.get('target_es', []))}{sound}"
+        )
+        back_sentence = f"<span class='lang-label'>ES:</span> {sentence_es}"
     else:
         return None
 
