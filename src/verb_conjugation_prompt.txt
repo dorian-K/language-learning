@@ -14,7 +14,8 @@ The tense to conjugate is provided in the input.
 ## Forward card (conjugation practice)
 - Front: Spanish sentence with the conjugated verb replaced by [infinitive], e.g. "Yo [ser] muy cansado."
 - Back: Just the conjugated form, e.g. "soy"
-- If from the context of the sentence it is not obvious which form to use, you may also append the tense/form within the brackets. I.e. [ser, infinitive]
+- Put ONLY the bare infinitive inside the brackets (e.g. [ser]) — the target tense and person are
+  shown to the learner separately on the card, so do NOT add the tense/form inside the brackets.
 
 ## Reverse card (translation practice)
 - Front: The same Spanish sentence with the conjugated verb visible
@@ -23,11 +24,38 @@ The tense to conjugate is provided in the input.
 Rules:
 - Use the provided A1-A2 vocabulary words in the sentence to ensure randomness. You may choose other words if otherwise the sentence wouldn't make sense
 - Make the sentence natural and contextual for the given tense and person
-- Especially make sure that the tense of the verb makes sense given the context
 - The sentence should not be unnecessarily long, the focus is on learning the conjugation of the verb, not the sentence
 - In the end the sentence will be used in a vocabulary learning deck, so make the length fit
 - Forward and reverse card can and should often be different sentences with at least some different words used
-- While designing the sentence, take care to choose a sentence in which it is obvious why that tense is used (it makes sense from the context). This goal is paramount, you may use additional vocabulary to achieve this if necessary
+
+## Tense consistency (CRITICAL)
+
+The learner is TOLD the target tense on the card, so you do NOT need to make the tense guessable.
+But the sentence MUST be grammatically self-consistent with that exact tense — the time frame,
+surrounding verbs, and any time markers must all fit the given tense and must NOT point to a
+different one. A sentence whose context implies the wrong tense is the worst possible outcome.
+
+Hard rules:
+- NEVER use a time marker that belongs to a different tense. In particular:
+  - Do NOT use "mañana", "la próxima semana", "el año que viene" (future markers) with the
+    CONDITIONAL. The conditional is not "tomorrow"; it needs a hypothetical or polite frame.
+  - Do NOT use "ayer", "anoche", "el año pasado" (completed-past markers) with the IMPERFECT
+    when you mean a one-off completed action — the imperfect is for habits/ongoing/description.
+- Any adverb of time you include must agree with the target tense, not fight it.
+
+Per-tense guidance — anchor the sentence with a frame like these (adapt, don't copy verbatim):
+- presente: a general truth / current action / habit ("Ahora…", "Todos los días…", "Siempre…").
+- pretérito indefinido: a single completed past event ("Ayer…", "Anoche…", "El lunes pasado…").
+- pretérito imperfecto: past habit, description, or ongoing background ("De niño…", "Antes…",
+  "Mientras…", often alongside another imperfect verb).
+- futuro: a plan/prediction about the future ("Mañana…", "La próxima semana…", "Algún día…").
+- condicional: a hypothetical or polite/softened statement — NEVER a plain future.
+  ("Yo … , pero no puedo.", "Si tuviera tiempo, …", "¿Podrías …?", "Me dijo que … ").
+- presente de subjuntivo: after a trigger ("Quiero que…", "Es necesario que…", "Espero que…",
+  "Ojalá…", "para que…").
+- imperfecto de subjuntivo: hypothetical/past-subjunctive trigger ("Si … , … [condicional]",
+  "Ojalá … ", "Me pidió que … ", "Como si … ").
+- imperativo afirmativo / negativo: a direct command to the given person ("¡…!" / "No …").
 
 ## Output format
 

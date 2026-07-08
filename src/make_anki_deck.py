@@ -559,14 +559,18 @@ def process_conjugation_card(card, deck, media):
     if direction == "conjugation_forward":
         # Front keeps the [infinitive] blank silent; the corrected audio rides on the answer word
         # (Back_Word renders only in afmt) so it autoplays on flip, not before recall.
-        front_word = f"{infinitive} ({person})"
+        # Show the target tense on the front word: conjugation practice supplies the tense as an
+        # input, so the learner isn't left guessing it from context (inferring the tense from a
+        # sentence is a translation skill — that's what the reverse card trains). The usage
+        # description stays behind the click-hint (Meta_Tags) as an optional reminder.
+        front_word = f"{infinitive} ({person}) · {tense_name}"
         front_sentence = sentence_es
         back_word = f"{conjugated}{sound}"
         back_sentence = (
             f"<span class='lang-label'>EN:</span> {card.get('example_sentence_en', '')}<br>"
             f"<span class='lang-label'>DE:</span> {card.get('example_sentence_de', '')}"
         )
-        meta = f"{tense_name}, {person}\n{tense_desc}"
+        meta = tense_desc
     elif direction == "conjugation_reverse":
         front_word = f"{conjugated} ({infinitive})"
         front_sentence = f"{sentence_es}{sound}"
