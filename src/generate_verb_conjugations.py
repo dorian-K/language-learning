@@ -52,6 +52,14 @@ PERSONS = [
     "ellos/ellas/ustedes",
 ]
 
+# The imperative mood has no first-person-singular form; we only drill the informal commands.
+IMPERATIVE_PERSONS = ["tú", "vosotros/vosotras"]
+
+
+def persons_for(tense_category):
+    """Grammatical persons that exist for a given tense/mood."""
+    return IMPERATIVE_PERSONS if tense_category == "imperativo" else PERSONS
+
 
 def load_vocab_words():
     vocab = []
@@ -185,7 +193,7 @@ def main():
         if is_dry_run:
             infinitive, _meaning = random.choice(verbs)
             tense_category, tense_name = random.choice(TENSES)
-            person = random.choice(PERSONS)
+            person = random.choice(persons_for(tense_category))
             vocab_sample = random.sample(vocab, min(5, len(vocab)))
 
             print(f"\n=== DRY RUN [{verb_type}] ===")
@@ -217,12 +225,7 @@ def main():
         tasks = []
         for infinitive, _meaning in verbs:
             for tense_category, tense_name in TENSES:
-                for person in PERSONS:
-                    if tense_category == "imperativo" and person not in [
-                        "tú",
-                        "vosotros/vosotras",
-                    ]:
-                        continue
+                for person in persons_for(tense_category):
                     vocab_sample = random.sample(vocab, min(5, len(vocab)))
                     tasks.append((infinitive, tense_category, tense_name, person, vocab_sample))
 
