@@ -3,21 +3,26 @@ import logging
 import os
 import re
 
-logger = logging.getLogger(__name__)
-
 from dotenv import load_dotenv
 from openai import OpenAI
 
+logger = logging.getLogger(__name__)
+
 load_dotenv()
-API_KEY = os.getenv("DEEPSEEK_API_KEY")
+API_KEY = os.getenv("OPENROUTER_API_KEY")
 
 if not API_KEY:
-    raise ValueError("DEEPSEEK_API_KEY is missing! Please add it to your .env file.")
+    raise ValueError("OPENROUTER_API_KEY is missing! Please add it to your .env file.")
 
-# Initialize the DeepSeek Client using the OpenAI SDK
+# GLM-5.2 via OpenRouter's Exacto routing preset (":exacto" picks the most accuracy-optimized
+# provider endpoint for the model). Overridable via ANKI_LLM_MODEL — deliberately NOT OPENROUTER_MODEL,
+# which the bbc_noticias bot uses for a different model (avoids one .env value hijacking both).
+MODEL = os.getenv("ANKI_LLM_MODEL", "z-ai/glm-5.2:exacto")
+
+# Initialize the OpenRouter client using the OpenAI SDK
 client = OpenAI(
     api_key=API_KEY,
-    base_url="https://api.deepseek.com",  # This tells the SDK to talk to DeepSeek, not OpenAI
+    base_url="https://openrouter.ai/api/v1",  # This tells the SDK to talk to OpenRouter, not OpenAI
 )
 # ==========================================
 
@@ -38,10 +43,11 @@ def extract_json_from_text(text):
 
 def invoke_llm(messages, print_reasoning=False, want_json=True):
     response = client.chat.completions.create(
-        model="deepseek-v4-pro",
+        model=MODEL,
         messages=messages,
         response_format={"type": "json_object"},
-        # Temperature is ignored by deepseek-reasoner (it enforces its own logical temperature)
+        # Enable the model's reasoning tokens via OpenRouter's unified reasoning param.
+        extra_body={"reasoning": {"enabled": True}},
     )
 
     # The final JSON response
