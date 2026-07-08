@@ -12,9 +12,7 @@ VERBS_FILES = {
     "irregular": os.path.join(
         os.path.dirname(__file__), "../extra_vocab/simple_and_irregular_verbs.txt"
     ),
-    "regular": os.path.join(
-        os.path.dirname(__file__), "../extra_vocab/regular_verbs.txt"
-    ),
+    "regular": os.path.join(os.path.dirname(__file__), "../extra_vocab/regular_verbs.txt"),
 }
 VOCAB_FOLDER = os.path.join(os.path.dirname(__file__), f"../anki/{VOCAB_SOURCE}")
 OUTPUT_CONFIGS = {
@@ -127,8 +125,34 @@ Vocabulary words to use in the sentence (A1-B1 level, use at least 2):
 """
 
 
+def canonicalize_cards(cards, verb, tense_category, tense_name, person):
+    """Overwrite the deterministic fields with the known inputs.
+
+    The LLM echoes tense/person/infinitive inconsistently ("futuro" vs "indicativo/futuro" vs
+    "pretérito_indefinido", "Ser" vs "ser", …). make_anki_deck derives each card's GUID and dedup
+    key from direction|infinitive|tense|person, so an inconsistent echo yields unstable GUIDs —
+    broken dedup and reset Anki scheduling on re-import. We already know the true values, so force
+    them into the canonical form ("category/name", lowercase infinitive) used by the deck.
+    """
+    canonical_tense = f"{tense_category}/{tense_name}"
+    canonical_infinitive = verb.strip().lower()
+    for card in cards:
+        if isinstance(card, dict):
+            card["infinitive"] = canonical_infinitive
+            card["tense"] = canonical_tense
+            card["person"] = person
+    return cards
+
+
 def process_conjugation(
-    verb, tense_category, tense_name, person, vocab_sample, prompt_text, output_folder, verbose=False
+    verb,
+    tense_category,
+    tense_name,
+    person,
+    vocab_sample,
+    prompt_text,
+    output_folder,
+    verbose=False,
 ):
     time.sleep(0.1 * random.random())
     key = f"{verb}_{tense_category}_{tense_name}_{person}".replace("/", "_")
@@ -152,6 +176,7 @@ def process_conjugation(
             ],
             print_reasoning=False,
         )
+        vocab_data = canonicalize_cards(vocab_data, verb, tense_category, tense_name, person)
 
         with open(output_file, "w", encoding="utf-8") as f:
             json.dump(vocab_data, f, indent=4, ensure_ascii=False)
@@ -203,7 +228,9 @@ def main():
             print(f"Vocab sample: {[v['es'] for v in vocab_sample]}")
             print()
 
-            llm_input = build_llm_input(infinitive, tense_category, tense_name, person, vocab_sample)
+            llm_input = build_llm_input(
+                infinitive, tense_category, tense_name, person, vocab_sample
+            )
             user_message = f"{prompt_text}\n{llm_input}"
 
             vocab_data = invoke_llm(
@@ -215,6 +242,9 @@ def main():
                     {"role": "user", "content": user_message},
                 ],
                 print_reasoning=False,
+            )
+            vocab_data = canonicalize_cards(
+                vocab_data, infinitive, tense_category, tense_name, person
             )
 
             print("--- LLM output (formatted) ---")
