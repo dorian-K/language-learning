@@ -67,33 +67,37 @@ Per-tense guidance — anchor the sentence with a frame like these (adapt, don't
 
 ## Output format
 
-Output ONLY a valid JSON array with exactly 2 objects.
+Output ONLY a valid JSON OBJECT with a single key "cards" whose value is an array of EXACTLY 2
+objects: the forward card first, then the reverse card. BOTH cards are mandatory — never omit the
+reverse card and never return a single object.
 No markdown, no comments, no explanations.
 
 Schema:
-[
-  {
-    "direction": "conjugation_forward",
-    "infinitive": "ser",
-    "tense": "presente",
-    "person": "yo",
-    "conjugated_form": "soy",
-    "example_sentence_es": "Yo [ser] muy cansado.",
-    "example_sentence_en": "I am very tired.",
-    "example_sentence_de": "Ich bin sehr müde.",
-    "notes": ""
-  },
-  {
-    "direction": "conjugation_reverse",
-    "infinitive": "ser",
-    "tense": "presente",
-    "person": "yo",
-    "conjugated_form": "soy",
-    "example_sentence_es": "Yo soy muy cansado.",
-    "example_sentence_en": "I am very tired.",
-    "example_sentence_de": "Ich bin sehr müde.",
-    "notes": ""
-  }
-]
+{
+  "cards": [
+    {
+      "direction": "conjugation_forward",
+      "infinitive": "ser",
+      "tense": "presente",
+      "person": "yo",
+      "conjugated_form": "soy",
+      "example_sentence_es": "Yo [ser] muy cansado.",
+      "example_sentence_en": "I am very tired.",
+      "example_sentence_de": "Ich bin sehr müde.",
+      "notes": ""
+    },
+    {
+      "direction": "conjugation_reverse",
+      "infinitive": "ser",
+      "tense": "presente",
+      "person": "yo",
+      "conjugated_form": "soy",
+      "example_sentence_es": "Yo soy muy cansado.",
+      "example_sentence_en": "I am very tired.",
+      "example_sentence_de": "Ich bin sehr müde.",
+      "notes": ""
+    }
+  ]
+}
 
 INPUT:

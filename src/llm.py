@@ -29,16 +29,39 @@ client = OpenAI(
 
 def extract_json_from_text(text):
     """
-    Reasoning models (like DeepSeek-R1) sometimes ignore the 'no markdown' rule
-    and wrap their output in ```json ... ``` blocks. This helper function
-    robustly finds and extracts the JSON array regardless of how it's formatted.
+    Reasoning models sometimes ignore the 'no markdown' rule and wrap their output in
+    ```json ... ``` fences. Strip a fence if present (works for both objects and arrays);
+    otherwise return the stripped text and let json.loads handle it.
     """
-    match = re.search(r"```(?:json)?\s*(\[\s*\{.*?\}\s*\])\s*```", text, re.DOTALL)
-    if match:
-        return match.group(1)
+    fence = re.search(r"```(?:json)?\s*(.*?)\s*```", text, re.DOTALL)
+    if fence:
+        return fence.group(1).strip()
 
     # If no markdown block is found, strip whitespace and hope it's raw JSON
     return text.strip()
+
+
+def _as_card_list(data):
+    """Normalize an LLM JSON payload to a flat list of card dicts.
+
+    ``response_format={"type": "json_object"}`` forces a top-level OBJECT, so even though
+    the prompts ask for an array the model may return a wrapper like ``{"cards": [...]}`` or,
+    occasionally, a single bare card object. Every caller expects a list, so coerce here.
+    """
+    if isinstance(data, list):
+        return data
+    if isinstance(data, dict):
+        # Wrapper object: prefer a well-known key, else the first value that is a list of dicts.
+        for key in ("cards", "flashcards", "items", "vocabulary", "words", "data", "results"):
+            value = data.get(key)
+            if isinstance(value, list):
+                return value
+        for value in data.values():
+            if isinstance(value, list) and value and all(isinstance(x, dict) for x in value):
+                return value
+        # A single bare card object.
+        return [data]
+    return []
 
 
 def invoke_llm(messages, print_reasoning=False, want_json=True):
@@ -66,4 +89,4 @@ def invoke_llm(messages, print_reasoning=False, want_json=True):
         logger.error("[llm] extract_vocab JSON parse error: %s | raw: %s", e, clean_json_str[:200])
         raise
 
-    return vocab_data
+    return _as_card_list(vocab_data)
