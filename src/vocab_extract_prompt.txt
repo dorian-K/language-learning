@@ -8,6 +8,11 @@ The vocabulary will later be used to create flashcards for an erasmus student le
 
 The transcript has been generated automatically from audio, so there may be some errors or misheard words. Use your best judgment to determine which words are likely to be correct and relevant for learning.
 
+### LANGUAGE VARIETY
+Use PENINSULAR (European / Castilian) Spanish — the variety spoken in Spain (the student is doing an Erasmus in Valencia).
+- Prefer Spain vocabulary over Latin-American equivalents (e.g. "coche" not "carro", "ordenador" not "computadora", "móvil" not "celular", "zumo" not "jugo", "patatas" not "papas", "conducir" not "manejar").
+- Example sentences must use Peninsular vocabulary and phrasing; use "vosotros/vosotras" (not "ustedes") for the informal plural where a plural "you" is needed.
+
 ### EXTRACTION RULES
 1. Identify the Spanish words or phrases that the speakers are actively learning, translating, or struggling with in the transcript.
 2. Ignore basic filler words or names unless they are explicitly the subject of learning.

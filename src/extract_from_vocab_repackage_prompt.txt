@@ -15,6 +15,12 @@ This can be used to teach grammar irregularities and common expressions, which a
 There can be a maximum of 8 objects per input word pair, and they should be ordered from the most basic and commonly used meaning to the more complex and less commonly used ones.
 If the word is a common expression or idiom, you can leave the sentences of that object empty in the JSON.
 
+# LANGUAGE VARIETY
+
+Use PENINSULAR (European / Castilian) Spanish — the variety spoken in Spain (the student is doing an Erasmus in Valencia).
+- Prefer Spain vocabulary over Latin-American equivalents (e.g. "coche" not "carro", "ordenador" not "computadora", "móvil" not "celular", "zumo" not "jugo", "patatas" not "papas", "conducir" not "manejar"). When a target_es array lists synonyms, put the Peninsular term first.
+- Example sentences must use Peninsular vocabulary and phrasing; use "vosotros/vosotras" (not "ustedes") for the informal plural where a plural "you" is needed.
+
 # RULES
 
 The English and German translations must be natural translations of the Spanish one. Vice versa for the Spanish translation.
