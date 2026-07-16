@@ -154,3 +154,34 @@ Rules that must not be re-broken:
 XTTS occasionally "babbles" — a short input renders as a long clip of repeated/garbled speech. `_synth_xtts` guards against this: it renders, checks the wav duration against `max(2.5, len(text)*0.18 + 1.5)`, and on a too-long render retries with the **next** voice in the rotation, keeping the **shortest** attempt (babble is almost always the longest). The first voice tried is the plain deterministic pick, so clips that render fine are unchanged. Tunable via `TTS_XTTS_MAX_ATTEMPTS`; anti-loop inference knobs (`repetition_penalty`, `length_penalty`, …) come from `_xtts_gen_kwargs()` and are passed best-effort (a Coqui build that rejects them trips a one-time `TypeError` fallback via `_XTTS_GEN_KWARGS_OK`). Do not "simplify" `_synth_xtts` back to a single render — the retry is the whole point.
 
 Separately, every clip (all backends) gets a short fade in/out (`TTS_FADE_MS`, default 10ms) and trailing-silence trim (`TTS_TRIM_END_SILENCE`, default on) via `_postprocess_wav()` — masks click/pop/noise bursts at clip edges. Needs ffmpeg; no-op without it. The trim handles *silence*, the babble guard handles *garbled length* — they are complementary, keep both.
+
+### Conjugation paradigm table + memory hint (`conjugation_table.py`, `make_anki_deck.py`)
+
+The back of each **forward** conjugation card shows the full verb+tense paradigm (all persons,
+current one highlighted) plus a one-line memory rule. Invariants:
+
+- The table is **assembled deterministically** from the sibling per-person cards (each card is one
+  verb+tense+person with its answer in `conjugated_form`) — no LLM. `process_json_files` injects
+  `_conj_forms` (and `_is_regular`) per card; `process_conjugation_card` renders from it.
+- **Forward cards only.** Reverse cards (translation practice) get an empty `Conjugation_Table`
+  field — don't add it there; it just duplicates the ~500-byte table across every note.
+- **Grouping keys must be normalized, never raw.** Paradigms group by `(infinitive.lower(),
+  tense_display_name(tense))` and persons by `canonical_person(...)`. Legacy data spells tenses
+  ("condicional" vs "indicativo/condicional") and persons ("él" vs "él/ella/usted") several ways;
+  keying on raw fields splits one paradigm into partial tables (was 65% complete, normalized → 99%).
+  `tense_display_name` relies on `TENSE_DESCRIPTIONS` covering every variant — add new variants there.
+- **Memory hints (`memory_hint`) must not mislead.** Present/preterite-indicative ending rules are
+  class-specific and shown **only for regular verbs** (`_is_regular`, from the deck folder); the
+  imperfect rule is withheld for ser/ir/ver. Otherwise a "regular -er endings" note would appear on
+  ser (soy/eres/es). Future/conditional/subjunctive/imperative rules hold for irregulars (stem-only
+  change) and always show.
+
+### Conjugation sentence validation (`conjugation_validation.py`)
+
+The LLM occasionally returns a forward sentence with no `[infinitive]` blank (or extra text in it),
+a reverse sentence with an unfilled bracket, or a sentence missing the verb. `validate_conjugation_card`
+/ `repair_conjugation_card` are pure and shared by two callers: `generate_verb_conjugations.py`
+repairs + retries (`MAX_GEN_ATTEMPTS`) so bad cards never reach the deck, and
+`fix_conjugation_sentences.py` repairs existing `anki/*_verbs` JSON in place (blank normalized to the
+**lowercase** bare infinitive — don't re-capitalize a correct `[dormir]` when the legacy `infinitive`
+field is "Dormir"). Verb-absent sentences are unrepairable → regenerate.
