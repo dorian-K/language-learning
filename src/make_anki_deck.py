@@ -642,13 +642,17 @@ def process_conjugation_card(card, deck, media):
     # audio speaks the real conjugated sentence (not "volver"). Reverse cards: no bracket, no-op.
     sound = sound_suffix(spoken_sentence(card), SENTENCE_MEDIA_DIR, media)
 
-    # Full-paradigm table for the back. Only on the FORWARD (conjugation-practice) card — that's
-    # where the learner just tried to recall this form, so the whole paradigm reinforces it. The
-    # reverse card is translation practice, where the table is off-topic; showing it on both would
-    # also duplicate the same ~500-byte table across every note for no benefit. `_conj_forms` is
-    # injected in process_json_files from the sibling per-person cards; absent in unit tests that
-    # build one card in isolation, in which case the table renders empty.
-    table_html = ""
+    # Full-paradigm table for the back of BOTH directions: on the forward (conjugation-practice)
+    # card it reinforces the form just recalled; on the reverse (translation) card it serves as a
+    # full-paradigm reference. The table zips down hard in the .apkg, so duplicating it costs little.
+    # `_conj_forms` is injected in process_json_files from the sibling per-person cards; absent in
+    # unit tests that build one card in isolation, in which case the table renders empty.
+    table_html = render_conjugation_table(
+        card.get("_conj_forms") or {},
+        person,
+        tense_name,
+        hint=memory_hint(infinitive, tense_name, card.get("_is_regular", True)),
+    )
 
     if direction == "conjugation_forward":
         # Front keeps the [infinitive] blank silent; the corrected audio rides on the answer word
@@ -665,12 +669,6 @@ def process_conjugation_card(card, deck, media):
             f"<span class='lang-label'>DE:</span> {card.get('example_sentence_de', '')}"
         )
         meta = tense_desc
-        table_html = render_conjugation_table(
-            card.get("_conj_forms") or {},
-            person,
-            tense_name,
-            hint=memory_hint(infinitive, tense_name, card.get("_is_regular", True)),
-        )
     elif direction == "conjugation_reverse":
         front_word = f"{conjugated} ({infinitive})"
         front_sentence = f"{sentence_es}{sound}"

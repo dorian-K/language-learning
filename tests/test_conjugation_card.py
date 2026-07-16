@@ -60,7 +60,8 @@ def test_reverse_does_not_show_tense_on_front():
     assert "Pretérito imperfecto" in f["Meta_Tags"]
 
 
-# The paradigm table lives only on the forward (conjugation-practice) card, never the reverse.
+# The paradigm table lives on both directions: the forward card reinforces the recalled form, the
+# reverse card gives the full paradigm as reference.
 _PARADIGM = {"yo": "como", "tú": "comes", "él/ella/usted": "come"}
 
 
@@ -81,7 +82,7 @@ def test_forward_includes_conjugation_table():
     assert "ct-current" in f["Conjugation_Table"]
 
 
-def test_reverse_omits_conjugation_table_even_when_forms_present():
+def test_reverse_includes_conjugation_table():
     card = {
         "direction": "conjugation_reverse",
         "infinitive": "comer",
@@ -92,7 +93,9 @@ def test_reverse_omits_conjugation_table_even_when_forms_present():
         "_conj_forms": _PARADIGM,
     }
     f = _render(card)
-    assert f["Conjugation_Table"] == ""
+    assert "conj-table" in f["Conjugation_Table"]
+    assert "como" in f["Conjugation_Table"] and "comes" in f["Conjugation_Table"]
+    assert "ct-current" in f["Conjugation_Table"]
 
 
 def test_tense_display_name_collapses_legacy_variants():

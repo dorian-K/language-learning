@@ -157,14 +157,16 @@ Separately, every clip (all backends) gets a short fade in/out (`TTS_FADE_MS`, d
 
 ### Conjugation paradigm table + memory hint (`conjugation_table.py`, `make_anki_deck.py`)
 
-The back of each **forward** conjugation card shows the full verb+tense paradigm (all persons,
-current one highlighted) plus a one-line memory rule. Invariants:
+The back of each conjugation card shows the full verb+tense paradigm (all persons, current one
+highlighted) plus a one-line memory rule. Invariants:
 
 - The table is **assembled deterministically** from the sibling per-person cards (each card is one
   verb+tense+person with its answer in `conjugated_form`) — no LLM. `process_json_files` injects
   `_conj_forms` (and `_is_regular`) per card; `process_conjugation_card` renders from it.
-- **Forward cards only.** Reverse cards (translation practice) get an empty `Conjugation_Table`
-  field — don't add it there; it just duplicates the ~500-byte table across every note.
+- **Both directions.** The forward (conjugation-practice) card and the reverse (translation) card
+  both carry the table — forward reinforces the recalled form, reverse serves as a paradigm
+  reference. It was originally forward-only; the user asked for both. The table zips down hard in the
+  `.apkg`, so duplicating it across notes costs little.
 - **Grouping keys must be normalized, never raw.** Paradigms group by `(infinitive.lower(),
   tense_display_name(tense))` and persons by `canonical_person(...)`. Legacy data spells tenses
   ("condicional" vs "indicativo/condicional") and persons ("él" vs "él/ella/usted") several ways;
