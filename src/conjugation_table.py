@@ -19,6 +19,29 @@ PERSON_ORDER = [
 ]
 
 
+# Legacy cards sometimes store an abbreviated grammatical person ("él" for "él/ella/usted",
+# "nosotros" for "nosotros/nosotras", …). Map every variant to the canonical PERSON_ORDER key so
+# those forms land in the right table row instead of vanishing. Purely a read-time normalization —
+# the stored data (and thus the card GUIDs) are left untouched.
+_PERSON_CANON = {}
+for _canon, _variants in {
+    "yo": ("yo",),
+    "tú": ("tú", "tu"),
+    "él/ella/usted": ("él", "ella", "usted", "ud", "ud.", "él/ella/usted", "el"),
+    "nosotros/nosotras": ("nosotros", "nosotras", "nosotros/nosotras"),
+    "vosotros/vosotras": ("vosotros", "vosotras", "vosotros/vosotras"),
+    "ellos/ellas/ustedes": ("ellos", "ellas", "ustedes", "uds", "uds.", "ellos/ellas/ustedes"),
+}.items():
+    for _v in _variants:
+        _PERSON_CANON[_v] = _canon
+
+
+def canonical_person(person):
+    """Map an abbreviated/variant grammatical person to its canonical PERSON_ORDER key."""
+    p = (person or "").strip().lower()
+    return _PERSON_CANON.get(p, (person or "").strip())
+
+
 def paradigm_key(infinitive, tense, tense_key=None):
     """The ``(infinitive, tense)`` key used to group cards into one paradigm.
 
@@ -123,7 +146,7 @@ def build_conjugation_lookup(cards, tense_key=None):
     """
     lookup = {}
     for card in cards:
-        person = (card.get("person") or "").strip()
+        person = canonical_person(card.get("person"))
         conjugated = (card.get("conjugated_form") or "").strip()
         key = paradigm_key(card.get("infinitive"), card.get("tense"), tense_key)
         if not (key[0] and key[1] and person and conjugated):
@@ -142,12 +165,13 @@ def render_conjugation_table(forms, current_person, tense_name="", hint=""):
     """
     if not forms:
         return ""
+    current = canonical_person(current_person)
     rows = []
     for person, label in PERSON_ORDER:
         form = forms.get(person)
         if not form:
             continue
-        cls = " class='ct-current'" if person == current_person else ""
+        cls = " class='ct-current'" if person == current else ""
         rows.append(
             f"<tr{cls}><td class='ct-person'>{label}</td><td class='ct-form'>{form}</td></tr>"
         )

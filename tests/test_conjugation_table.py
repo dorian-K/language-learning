@@ -1,6 +1,11 @@
 """Full-paradigm conjugation table assembled from the per-person cards."""
 
-from conjugation_table import build_conjugation_lookup, memory_hint, render_conjugation_table
+from conjugation_table import (
+    build_conjugation_lookup,
+    canonical_person,
+    memory_hint,
+    render_conjugation_table,
+)
 
 
 def _card(infinitive, tense, person, conjugated, direction="conjugation_forward"):
@@ -37,6 +42,29 @@ def test_lookup_dedupes_forward_and_reverse():
 def test_lookup_skips_incomplete_cards():
     cards = [_card("ser", "indicativo/presente", "yo", ""), {"infinitive": "ser"}]
     assert build_conjugation_lookup(cards) == {}
+
+
+def test_canonical_person_maps_abbreviations():
+    assert canonical_person("él") == "él/ella/usted"
+    assert canonical_person("usted") == "él/ella/usted"
+    assert canonical_person("nosotros") == "nosotros/nosotras"
+    assert canonical_person("vosotras") == "vosotros/vosotras"
+    assert canonical_person("ellos") == "ellos/ellas/ustedes"
+    assert canonical_person("yo") == "yo"
+
+
+def test_lookup_merges_abbreviated_person_into_canonical_row():
+    # A legacy card stored person as "él"; it must land in the "él/ella/usted" row, not vanish.
+    cards = [
+        _card("caer", "indicativo/presente", "yo", "caigo"),
+        _card("caer", "indicativo/presente", "él", "cae"),
+    ]
+    lookup = build_conjugation_lookup(cards)
+    forms = lookup[("caer", "indicativo/presente")]
+    assert forms["él/ella/usted"] == "cae"
+    # Rendering with the abbreviated current person still highlights the right row.
+    html = render_conjugation_table(forms, "él", "Presente")
+    assert "<tr class='ct-current'><td class='ct-person'>él/ella/Ud.</td>" in html
 
 
 def test_render_orders_persons_and_highlights_current():
