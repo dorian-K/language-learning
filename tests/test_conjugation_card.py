@@ -93,3 +93,30 @@ def test_reverse_omits_conjugation_table_even_when_forms_present():
     }
     f = _render(card)
     assert f["Conjugation_Table"] == ""
+
+
+def test_tense_display_name_collapses_legacy_variants():
+    # Legacy data spells the same tense several ways; all variants must map to one display name
+    # so their per-person cards group into a single paradigm table (not two partial ones).
+    groups = {
+        "Pretérito indefinido": [
+            "indicativo/pretérito_indefinido",
+            "pretérito indefinido",
+            "pretérito_indefinido",
+        ],
+        "Presente de subjuntivo": [
+            "subjuntivo/presente",
+            "subjuntivo presente",
+            "subjuntivo_presente",
+        ],
+        "Condicional": ["indicativo/condicional", "condicional"],
+        "Futuro simple": ["indicativo/futuro", "futuro"],
+        "Imperativo afirmativo": ["imperativo/afirmativo", "imperativo afirmativo"],
+    }
+    for display, variants in groups.items():
+        for v in variants:
+            assert mad.tense_display_name(v) == display, v
+    # Distinct tenses must NOT collapse together.
+    assert mad.tense_display_name("indicativo/presente") != mad.tense_display_name(
+        "subjuntivo/presente"
+    )

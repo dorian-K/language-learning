@@ -428,6 +428,14 @@ TENSE_DESCRIPTIONS = {
         "Pretérito imperfecto",
         "Imperfect - ongoing/past habits, descriptions",
     ),
+    # Bare-mood variants some legacy cards use. Without these they hit the fallback and get a
+    # differently-cased display name ("pretérito indefinido"), which splits the paradigm table in
+    # two (see tense_display_name / build_conjugation_lookup).
+    "pretérito_indefinido": ("Pretérito indefinido", "Simple past - completed actions in the past"),
+    "subjuntivo presente": (
+        "Presente de subjuntivo",
+        "Present subjunctive - wishes, emotions, uncertainty",
+    ),
 }
 
 CONJUGATION_MODEL_ID = random.Random("Verb_Conjugation_Cards").randrange(1 << 30, 1 << 31)
