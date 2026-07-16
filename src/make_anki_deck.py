@@ -4,6 +4,7 @@ import random
 
 import genanki
 
+from conjugation_table import build_conjugation_lookup, paradigm_key, render_conjugation_table
 from spoken_sentence import spoken_sentence
 from spoken_word import spoken_word
 from tts import find_audio
@@ -62,6 +63,19 @@ def conjugation_tier(card):
     """ "High Priority" if the card's verb is a top-frequency irregular, else "Low Priority"."""
     infinitive = (card.get("infinitive", "") or "").strip().lower()
     return "High Priority" if infinitive in HIGH_PRIORITY_IRREGULARS else "Low Priority"
+
+
+def tense_display_name(raw_tense):
+    """Normalized display name for a tense string (also the paradigm grouping key).
+
+    Legacy data spells the same tense several ways ("condicional" vs "indicativo/condicional",
+    "imperativo afirmativo" vs "imperativo/afirmativo"); TENSE_DESCRIPTIONS maps every variant to a
+    single display name, so grouping the conjugation table by it keeps each paradigm whole while
+    still separating genuinely-different tenses ("indicativo/presente" vs "subjuntivo/presente").
+    """
+    return TENSE_DESCRIPTIONS.get(raw_tense, (raw_tense.replace("_", " ").replace("/", " - "), ""))[
+        0
+    ]
 
 
 # Audio clips, keyed by a content hash of the spoken text (see tts.audio_stem):
@@ -263,6 +277,53 @@ hr {
 .nightMode .tense-reveal {
      color: rgb(255, 150, 150);
 }
+.conj-table {
+     margin-top: 20px;
+}
+.conj-table .ct-title {
+     font-size: 0.75em;
+     text-transform: uppercase;
+     letter-spacing: 0.05em;
+     color: rgb(101, 68, 233);
+     font-weight: bold;
+     margin-bottom: 6px;
+}
+.nightMode .conj-table .ct-title {
+     color: rgb(153, 128, 255);
+}
+.conj-table table {
+     border-collapse: collapse;
+     width: 100%;
+     max-width: 320px;
+}
+.conj-table td {
+     padding: 3px 12px;
+     border-bottom: 1px solid rgb(230, 224, 250);
+}
+.nightMode .conj-table td {
+     border-color: rgb(40, 28, 66);
+}
+.conj-table .ct-person {
+     color: rgb(120, 110, 150);
+     text-align: right;
+     white-space: nowrap;
+     font-size: 0.9em;
+}
+.nightMode .conj-table .ct-person {
+     color: rgb(150, 140, 180);
+}
+.conj-table .ct-form {
+     font-weight: 600;
+}
+.conj-table .ct-current {
+     background-color: rgba(133, 102, 255, 0.15);
+}
+.conj-table .ct-current .ct-form {
+     color: rgb(75, 50, 174);
+}
+.nightMode .conj-table .ct-current .ct-form {
+     color: rgb(153, 128, 255);
+}
 """
 
 VOCAB_MODEL_ID = random.Random("Symmetrical_ES_EN_DE_Vocab").randrange(1 << 30, 1 << 31)
@@ -379,6 +440,7 @@ conjugation_model = genanki.Model(
         {"name": "Back_Word"},
         {"name": "Back_Sentence"},
         {"name": "Meta_Tags"},
+        {"name": "Conjugation_Table"},
     ],
     templates=[
         {
@@ -400,6 +462,7 @@ conjugation_model = genanki.Model(
             <div class="tense-reveal">{{Meta_Tags}}</div>
             <div class="definition">{{Back_Word}}</div>
             <div class="sentence-translation">{{Back_Sentence}}</div>
+            {{Conjugation_Table}}
         </div>
         """,
         },
@@ -420,6 +483,7 @@ conjugation_model = genanki.Model(
             <hr id="answer" />
             <div class="definition">{{Back_Word}}</div>
             <div class="sentence-translation">{{Back_Sentence}}</div>
+            {{Conjugation_Table}}
         </div>
         """,
         },
@@ -556,6 +620,14 @@ def process_conjugation_card(card, deck, media):
     # audio speaks the real conjugated sentence (not "volver"). Reverse cards: no bracket, no-op.
     sound = sound_suffix(spoken_sentence(card), SENTENCE_MEDIA_DIR, media)
 
+    # Full-paradigm table for the back. Only on the FORWARD (conjugation-practice) card — that's
+    # where the learner just tried to recall this form, so the whole paradigm reinforces it. The
+    # reverse card is translation practice, where the table is off-topic; showing it on both would
+    # also duplicate the same ~500-byte table across every note for no benefit. `_conj_forms` is
+    # injected in process_json_files from the sibling per-person cards; absent in unit tests that
+    # build one card in isolation, in which case the table renders empty.
+    table_html = ""
+
     if direction == "conjugation_forward":
         # Front keeps the [infinitive] blank silent; the corrected audio rides on the answer word
         # (Back_Word renders only in afmt) so it autoplays on flip, not before recall.
@@ -571,6 +643,7 @@ def process_conjugation_card(card, deck, media):
             f"<span class='lang-label'>DE:</span> {card.get('example_sentence_de', '')}"
         )
         meta = tense_desc
+        table_html = render_conjugation_table(card.get("_conj_forms") or {}, person, tense_name)
     elif direction == "conjugation_reverse":
         front_word = f"{conjugated} ({infinitive})"
         front_sentence = f"{sentence_es}{sound}"
@@ -587,7 +660,7 @@ def process_conjugation_card(card, deck, media):
     note_guid = genanki.guid_for(key)
     note = genanki.Note(
         model=conjugation_model,
-        fields=[front_word, front_sentence, back_word, back_sentence, meta],
+        fields=[front_word, front_sentence, back_word, back_sentence, meta, table_html],
         guid=note_guid,
     )
     deck.add_note(note)
@@ -713,6 +786,19 @@ def process_json_files():
 
             except Exception as e:
                 print(f"Error processing {filepath}: {e}")
+
+        # Conjugation decks: reconstruct each verb+tense's full paradigm from its sibling per-person
+        # cards and attach it to every card, so the back can render the whole table (see
+        # conjugation_table.py). Vocab/numbers have no paradigm and are left untouched.
+        if model_type == "conjugation":
+            lookup = build_conjugation_lookup(
+                (entry["card"] for entry in entries.values()), tense_key=tense_display_name
+            )
+            for entry in entries.values():
+                c = entry["card"]
+                c["_conj_forms"] = lookup.get(
+                    paradigm_key(c.get("infinitive"), c.get("tense"), tense_display_name), {}
+                )
 
         folder_card_count = 0
         if model_type == "vocab":

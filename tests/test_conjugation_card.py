@@ -4,7 +4,14 @@ import genanki
 
 import make_anki_deck as mad
 
-FIELDS = ["Front_Word", "Front_Sentence", "Back_Word", "Back_Sentence", "Meta_Tags"]
+FIELDS = [
+    "Front_Word",
+    "Front_Sentence",
+    "Back_Word",
+    "Back_Sentence",
+    "Meta_Tags",
+    "Conjugation_Table",
+]
 
 
 def _render(card):
@@ -51,3 +58,38 @@ def test_reverse_does_not_show_tense_on_front():
     assert "Pretérito imperfecto" not in f["Front_Sentence"]
     # Tense reveal still available on the back.
     assert "Pretérito imperfecto" in f["Meta_Tags"]
+
+
+# The paradigm table lives only on the forward (conjugation-practice) card, never the reverse.
+_PARADIGM = {"yo": "como", "tú": "comes", "él/ella/usted": "come"}
+
+
+def test_forward_includes_conjugation_table():
+    card = {
+        "direction": "conjugation_forward",
+        "infinitive": "comer",
+        "tense": "indicativo/presente",
+        "person": "tú",
+        "conjugated_form": "comes",
+        "example_sentence_es": "Tú [comer] pan.",
+        "_conj_forms": _PARADIGM,
+    }
+    f = _render(card)
+    assert "conj-table" in f["Conjugation_Table"]
+    # Every person of the paradigm is listed, current one highlighted.
+    assert "como" in f["Conjugation_Table"] and "comes" in f["Conjugation_Table"]
+    assert "ct-current" in f["Conjugation_Table"]
+
+
+def test_reverse_omits_conjugation_table_even_when_forms_present():
+    card = {
+        "direction": "conjugation_reverse",
+        "infinitive": "comer",
+        "tense": "indicativo/presente",
+        "person": "tú",
+        "conjugated_form": "comes",
+        "example_sentence_es": "Tú comes pan.",
+        "_conj_forms": _PARADIGM,
+    }
+    f = _render(card)
+    assert f["Conjugation_Table"] == ""
