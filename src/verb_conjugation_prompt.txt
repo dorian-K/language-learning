@@ -24,6 +24,9 @@ The tense to conjugate is provided in the input.
 - Back: Just the conjugated form, e.g. "soy"
 - Put ONLY the bare infinitive inside the brackets (e.g. [ser]) — the target tense and person are
   shown to the learner separately on the card, so do NOT add the tense/form inside the brackets.
+  WRONG: "[hablar, imperfecto]", "[hablar (imperfecto)]", "[hablaba]". RIGHT: "[hablar]".
+- The forward sentence MUST contain exactly ONE bracketed blank, and it MUST be the target verb.
+  Never write the conjugated form in the forward sentence, and never omit the blank.
 - NEGATIVE IMPERATIVE: `conjugated_form` and the bracket blank must contain ONLY the verb form, NOT
   the word "no". Write the negation as part of the sentence, before the bracket. So for "no comas"
   the forward sentence is "¡No [comer] tanto!" with `conjugated_form`: "comas" (NOT "no comas") — the
@@ -32,6 +35,8 @@ The tense to conjugate is provided in the input.
 ## Reverse card (translation practice)
 - Front: The same Spanish sentence with the conjugated verb visible
 - Back: English and German translations of the full sentence
+- The reverse sentence MUST contain the conjugated form (the exact value of `conjugated_form`)
+  as a real word — NO brackets, and the verb must actually appear in the sentence.
 
 Rules:
 - Use the provided A1-A2 vocabulary words in the sentence to ensure randomness. You may choose other words if otherwise the sentence wouldn't make sense

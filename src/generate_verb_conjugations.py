@@ -4,9 +4,15 @@ import random
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+from conjugation_validation import repair_conjugation_card, validate_conjugation_card
 from llm import invoke_llm
 
 VOCAB_SOURCE = os.getenv("VOCAB_SOURCE", "Refold ES1K")
+
+# The LLM occasionally returns a malformed sentence (no [infinitive] blank, verb missing, …).
+# We repair what we can and retry the whole call when a card is still invalid, so bad cards never
+# reach the deck. Tunable; 0 disables retries (repair-only).
+MAX_GEN_ATTEMPTS = int(os.getenv("MAX_GEN_ATTEMPTS", "3"))
 
 VERBS_FILES = {
     "irregular": os.path.join(
@@ -166,17 +172,14 @@ def process_conjugation(
     user_message = f"{prompt_text}\n{llm_input}"
 
     try:
-        vocab_data = invoke_llm(
-            [
-                {
-                    "role": "system",
-                    "content": "You are an expert linguistics AI and Spanish language teacher. You output strict JSON arrays.",
-                },
-                {"role": "user", "content": user_message},
-            ],
-            print_reasoning=False,
+        vocab_data, issues = generate_valid_cards(
+            verb, tense_category, tense_name, person, user_message, key
         )
-        vocab_data = canonicalize_cards(vocab_data, verb, tense_category, tense_name, person)
+        if issues:
+            # Repair couldn't salvage it and retries were exhausted; don't write a broken card —
+            # leaving no file means the next run regenerates it.
+            print(f"WARNING: {key} still invalid after {MAX_GEN_ATTEMPTS} attempts: {issues}")
+            return False
 
         with open(output_file, "w", encoding="utf-8") as f:
             json.dump(vocab_data, f, indent=4, ensure_ascii=False)
@@ -189,6 +192,34 @@ def process_conjugation(
     except Exception as e:
         print(f"Error processing {key}: {e}")
         return False
+
+
+def generate_valid_cards(verb, tense_category, tense_name, person, user_message, key=""):
+    """Invoke the LLM, canonicalize + repair, and retry until the cards validate.
+
+    Returns ``(cards, issues)``; ``issues`` is empty when the cards are valid. On exhausted retries
+    it returns the last attempt together with its remaining issues so the caller can decide.
+    """
+    cards, issues = [], ["no attempt made"]
+    for attempt in range(1, MAX_GEN_ATTEMPTS + 1):
+        cards = invoke_llm(
+            [
+                {
+                    "role": "system",
+                    "content": "You are an expert linguistics AI and Spanish language teacher. You output strict JSON arrays.",
+                },
+                {"role": "user", "content": user_message},
+            ],
+            print_reasoning=False,
+        )
+        cards = canonicalize_cards(cards, verb, tense_category, tense_name, person)
+        for card in cards:
+            repair_conjugation_card(card)
+        issues = [issue for card in cards for issue in validate_conjugation_card(card)]
+        if not issues:
+            return cards, []
+        print(f"  [retry {attempt}/{MAX_GEN_ATTEMPTS}] {key}: {issues}")
+    return cards, issues
 
 
 def main():
