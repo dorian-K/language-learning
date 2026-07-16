@@ -4,7 +4,12 @@ import random
 
 import genanki
 
-from conjugation_table import build_conjugation_lookup, paradigm_key, render_conjugation_table
+from conjugation_table import (
+    build_conjugation_lookup,
+    memory_hint,
+    paradigm_key,
+    render_conjugation_table,
+)
 from spoken_sentence import spoken_sentence
 from spoken_word import spoken_word
 from tts import find_audio
@@ -323,6 +328,15 @@ hr {
 }
 .nightMode .conj-table .ct-current .ct-form {
      color: rgb(153, 128, 255);
+}
+.conj-table .ct-hint {
+     margin-top: 10px;
+     font-size: 0.85em;
+     line-height: 1.4;
+     color: rgb(120, 110, 150);
+}
+.nightMode .conj-table .ct-hint {
+     color: rgb(160, 150, 190);
 }
 """
 
@@ -651,7 +665,12 @@ def process_conjugation_card(card, deck, media):
             f"<span class='lang-label'>DE:</span> {card.get('example_sentence_de', '')}"
         )
         meta = tense_desc
-        table_html = render_conjugation_table(card.get("_conj_forms") or {}, person, tense_name)
+        table_html = render_conjugation_table(
+            card.get("_conj_forms") or {},
+            person,
+            tense_name,
+            hint=memory_hint(infinitive, tense_name, card.get("_is_regular", True)),
+        )
     elif direction == "conjugation_reverse":
         front_word = f"{conjugated} ({infinitive})"
         front_sentence = f"{sentence_es}{sound}"
@@ -799,6 +818,10 @@ def process_json_files():
         # cards and attach it to every card, so the back can render the whole table (see
         # conjugation_table.py). Vocab/numbers have no paradigm and are left untouched.
         if model_type == "conjugation":
+            # The regular-verbs deck follows the regular paradigm; the irregular deck doesn't, which
+            # gates the class-based ending hints (memory_hint) so irregulars never show a misleading
+            # "regular endings" rule.
+            is_regular = os.path.basename(folder) == "regular_verbs"
             lookup = build_conjugation_lookup(
                 (entry["card"] for entry in entries.values()), tense_key=tense_display_name
             )
@@ -807,6 +830,7 @@ def process_json_files():
                 c["_conj_forms"] = lookup.get(
                     paradigm_key(c.get("infinitive"), c.get("tense"), tense_display_name), {}
                 )
+                c["_is_regular"] = is_regular
 
         folder_card_count = 0
         if model_type == "vocab":

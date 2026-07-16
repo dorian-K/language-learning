@@ -1,6 +1,6 @@
 """Full-paradigm conjugation table assembled from the per-person cards."""
 
-from conjugation_table import build_conjugation_lookup, render_conjugation_table
+from conjugation_table import build_conjugation_lookup, memory_hint, render_conjugation_table
 
 
 def _card(infinitive, tense, person, conjugated, direction="conjugation_forward"):
@@ -63,3 +63,46 @@ def test_render_imperative_only_shows_its_two_persons():
 
 def test_render_empty_forms_returns_empty_string():
     assert render_conjugation_table({}, "yo", "Presente") == ""
+
+
+def test_render_includes_hint_when_provided():
+    html = render_conjugation_table({"yo": "hablo"}, "yo", "Presente", hint="Regular -ar: -o, -as…")
+    assert "ct-hint" in html and "Regular -ar" in html
+
+
+def test_memory_hint_is_class_specific_for_present():
+    assert "-ar" in memory_hint("hablar", "Presente")
+    assert "-er" in memory_hint("comer", "Presente")
+    assert "-ir" in memory_hint("vivir", "Presente")
+
+
+def test_memory_hint_reflexive_infinitive_resolves_class():
+    # dormirse -> -ir class
+    assert memory_hint("dormirse", "Presente") == memory_hint("dormir", "Presente")
+
+
+def test_memory_hint_future_is_class_independent_and_universal():
+    assert memory_hint("hablar", "Futuro simple") == memory_hint("comer", "Futuro simple")
+    assert "every verb" in memory_hint("ser", "Futuro simple")
+
+
+def test_memory_hint_unknown_tense_is_empty():
+    assert memory_hint("hablar", "Some Unknown Tense") == ""
+
+
+def test_memory_hint_regular_only_rules_withheld_for_irregular_verbs():
+    # A "regular -er endings" note on ser would contradict soy/eres/es — withhold it.
+    assert memory_hint("ser", "Presente", is_regular=False) == ""
+    assert memory_hint("ir", "Pretérito indefinido", is_regular=False) == ""
+    # But the same present rule shows for a regular verb.
+    assert memory_hint("comer", "Presente", is_regular=True) != ""
+    # Universal rules still show even for irregular verbs.
+    assert memory_hint("tener", "Presente de subjuntivo", is_regular=False) != ""
+    assert memory_hint("ser", "Futuro simple", is_regular=False) != ""
+
+
+def test_memory_hint_imperfect_withheld_for_ser_ir_ver():
+    for verb in ("ser", "ir", "ver"):
+        assert memory_hint(verb, "Pretérito imperfecto", is_regular=False) == ""
+    # Regular for everyone else, even other irregular verbs.
+    assert memory_hint("tener", "Pretérito imperfecto", is_regular=False) != ""
